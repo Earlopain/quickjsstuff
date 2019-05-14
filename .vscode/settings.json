@@ -1,0 +1,12 @@
+{
+    "files.watcherExclude": {
+        "**/.git//**": true,
+        "**/node_modules/**": true,
+        "**/e621extra/**": true,
+        "**/e621posts/**": true,
+        "**/e621postsStripped/**": true,
+        "**/e621tags/**": true,
+        "**/steamemotes/**": true,
+        "**/steamusers/**": true
+      }
+}

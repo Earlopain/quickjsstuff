@@ -1,0 +1,27 @@
+{
+  "name": "quickjsstuff",
+  "version": "1.0.0",
+  "description": "",
+  "main": "e621downloader.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "better-sqlite3": "^5.4.0",
+    "clipboardy": "^2.0.0",
+    "ffmetadata": "^1.5.0",
+    "gm": "^1.23.1",
+    "howlongtobeat": "^1.1.1",
+    "html-entities": "^1.2.1",
+    "image-size": "^0.7.4",
+    "opn": "^6.0.0",
+    "pngjs": "^3.4.0",
+    "readline-sync": "^1.4.9",
+    "request": "^2.88.0",
+    "striptags": "^3.1.1",
+    "twitter-lite": "^0.9.4",
+    "xml-parser": "^1.2.1"
+  }
+}

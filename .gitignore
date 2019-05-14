@@ -1,0 +1,9 @@
+node_modules
+e621extra
+e621tags
+steamemotes
+steamusers
+*.log
+*.html
+*.db
+secrets.json
