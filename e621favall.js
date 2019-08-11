@@ -35,7 +35,8 @@ async function main() {
             const result = await postURL(baseURLUpvote + id);
             if (result.change === -1)
                 await postURL(baseURLUpvote + id);
-            fs.renameSync(folder + file, folder + "all/" + file);
+            fs.copyFileSync(folder + file, folder + "all/" + file);
+            fs.unlinkSync(folder + file, folder + "all/" + file);
         }
     }
 }
