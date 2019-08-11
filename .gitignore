@@ -1,9 +1,11 @@
 node_modules
 e621extra
 e621tags
+e621posts
 steamemotes
 steamusers
 *.log
 *.html
 *.db
 secrets.json
+previousFiles.txt
