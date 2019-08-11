@@ -8,7 +8,7 @@ const xmlparse = require('xml-parser');
 
 const secrets = JSON.parse(fs.readFileSync("./secrets.json"));
 
-const musicDir = "/media/earlopain/External/Music/DOWNLOADS";
+const musicDir = "/media/earlopain/External/Music";     // No trailing slash
 const enabledProviders = ["LyricsFandom", "Genius", "Metadata"];
 
 const artists = fs.readdirSync(musicDir);
@@ -27,23 +27,28 @@ async function main() {
                     continue;
                 const metadata = await getMP3Metadata(mp3);   //https://stackoverflow.com/a/7592235
 
+                if (!metadata.artist || !metadata.title){
+                    console.log("Missing metadata: " + path.dirname(mp3).split(musicDir)[1].substr(1) + "/" + path.basename(mp3));
+                    continue;
+                }
+
                 let lyrics;
                 let lyricSource;
                 let isLRC = false;
                 for (const provider of enabledProviders) {
                     lyricSource = provider;
                     switch (provider) {
-                        case "Alsong":
+                        case "Alsong      ":
                             lyrics = await getLyricsAlsong(metadata);
                             isLRC = true;
                             break;
                         case "LyricsFandom":
                             lyrics = await getLyricsFandomLyrics(metadata);
                             break;
-                        case "Genius":
+                        case "Genius      ":
                             lyrics = await getLyricsGenius(metadata);
                             break;
-                        case "Metadata":
+                        case "Metadata    ":
                             lyrics = await getLyricsMetadata(metadata);
                             break;
                     }
@@ -56,7 +61,7 @@ async function main() {
                     else
                         fs.writeFileSync(mp3.slice(0, -4) + ".txt", lyrics);
 
-                    console.log(lyricSource + ": " + path.basename(mp3));
+                    console.log(lyricSource + ": " + path.dirname(mp3).split(musicDir)[1].substr(1) + "/" + path.basename(mp3));
                 }
 
             }
