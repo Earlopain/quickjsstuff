@@ -28,7 +28,8 @@ const user = "earlopain";
 
 const plexCLient = new PlexAPI({ "token": secrets.plexservertoken, "hostname": "192.168.178.97" });
 
-let startedPlaying;
+let endTime;
+let resetPlayTime = false;
 
 async function setActivity() {
     if (!rpc)
@@ -36,6 +37,7 @@ async function setActivity() {
     const allStreams = await plexQuery("/status/sessions");
     let displayThis;
     if (allStreams === undefined) {
+        resetPlayTime = true;
         rpc.clearActivity();
         return;
     }
@@ -48,21 +50,27 @@ async function setActivity() {
             }
         }
     }
-    if (!activeStream){
+    if (!activeStream) {
+        resetPlayTime = true;
         rpc.clearActivity();
         return;
     }
     if (playingKey !== displayThis.key) {
-        startedPlaying = new Date();
+        endTime = new Date().getTime() + parseInt(displayThis.duration) - parseInt(displayThis.viewOffset);
         playingKey = displayThis.key;
     }
     if (previousCovers[displayThis.parentRatingKey] === undefined)
         await uploadCover(displayThis);
+    if(resetPlayTime){
+        resetPlayTime = false;
+        endTime = new Date().getTime() + parseInt(displayThis.duration) - parseInt(displayThis.viewOffset);
+    }
 
     rpc.setActivity({
         details: displayThis.title,
         state: displayThis.originalTitle + " - " + displayThis.parentTitle,
-        startTimestamp: startedPlaying,
+        startTimestamp: new Date().getTime(),
+        endTimestamp: endTime,
         largeImageKey: 'cover' + displayThis.parentRatingKey,
         largeImageText: 'Listening to Music',
         smallImageKey: 'plex',
