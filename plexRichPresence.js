@@ -1,11 +1,22 @@
 const fs = require("fs");
 const request = require("request");
 //const sharp = require("sharp");
+const secrets = JSON.parse(fs.readFileSync("./secrets.json"));
+
 
 const DiscordRPC = require('discord-rpc');
 var PlexAPI = require("plex-api");
 
 const clientId = '610566273956446221';
+
+let previousCovers;
+
+try {
+    previousCovers = JSON.parse(fs.readFileSync(__dirname + "/imageKey.json", "utf8"));
+} catch (error) {
+    previousCovers = {};
+}
+
 
 let playingKey;
 let parentKey;
@@ -15,7 +26,7 @@ const rpc = new DiscordRPC.Client({ transport: 'ipc' });
 
 const user = "earlopain";
 
-const plexCLient = new PlexAPI({ "token": "fpJx4zeYwyou3KWv4BNX", "hostname": "192.168.178.97" });
+const plexCLient = new PlexAPI({ "token": secrets.plexservertoken, "hostname": "192.168.178.97" });
 
 let startedPlaying;
 
@@ -24,6 +35,9 @@ async function setActivity() {
         return;
     const allStreams = await plexQuery("/status/sessions");
     let displayThis;
+    if (allStreams === undefined) {
+        return;
+    }
 
     for (const stream of allStreams) {
         if (stream.User.title.toLowerCase() === user) {
@@ -40,10 +54,9 @@ async function setActivity() {
         startedPlaying = new Date();
         playingKey = displayThis.key;
     }
-    if (parentKey !== displayThis.parentRatingKey) {
-        parentKey = displayThis.parentRatingKey;
+    if (previousCovers[displayThis.parentRatingKey] === undefined)
         await uploadCover(displayThis);
-    }
+
     rpc.setActivity({
         details: displayThis.title,
         state: displayThis.originalTitle + " - " + displayThis.parentTitle,
@@ -88,12 +101,13 @@ async function plexQueryBin(string) {
 }
 
 async function uploadCover(displayThis) {
-    await removePreviousCover();
+    if (Object.keys(previousCovers).length >= 150)
+        await removeOldestCover();
     const cover = await getCover(displayThis);
     //const coverResized = await resizeImage(cover);
     const coverBase64 = "data:image/jpeg;base64," + cover.toString("base64");
     const response = await postImage(coverBase64, displayThis);
-    writeCoverKey(response.id);
+    writeCoverKey(displayThis.parentRatingKey, response.id);
 }
 
 async function getCover(displayThis) {
@@ -107,7 +121,7 @@ function postImage(imageBase64, displayThis) {
             url: "https://discordapp.com/api/v6/oauth2/applications/" + clientId + "/assets",
             method: "POST",
             headers: {
-                "Authorization": "mfa.J0jVZUR5iIGmdj1FOmPK_Y35s_FV8Y8SakQ6M3ZUxchYoSiHuLtRHNE5Kb5pH6PkBXnlRjQT6VYdDyDT3jpu"
+                "Authorization": secrets.discordWebToken
             },
             json: {
                 "image": imageBase64,
@@ -125,7 +139,7 @@ function deleteCover(id) {
             url: "https://discordapp.com/api/v6/oauth2/applications/" + clientId + "/assets/" + id,
             method: "DELETE",
             headers: {
-                "Authorization": "mfa.J0jVZUR5iIGmdj1FOmPK_Y35s_FV8Y8SakQ6M3ZUxchYoSiHuLtRHNE5Kb5pH6PkBXnlRjQT6VYdDyDT3jpu"
+                "Authorization": secrets.discordWebToken
             }
         }, (error, response, body) => {
             resolve(body);
@@ -133,16 +147,21 @@ function deleteCover(id) {
     });
 }
 
-function writeCoverKey(coverID) {
-    fs.writeFileSync(__dirname + "/imageKey.txt", coverID, "utf8")
+function writeCoverKey(plexID, discordID) {
+    previousCovers[plexID] = { "discordID": discordID, "addedAt": new Date().getTime() };
+    fs.writeFileSync(__dirname + "/imageKey.json", JSON.stringify(previousCovers, null, 4), "utf8")
 }
 
-function getCoverKey() {
-    return fs.readFileSync(__dirname + "/imageKey.txt", "utf8");
-}
-
-async function removePreviousCover() {
-    await deleteCover(getCoverKey());
+async function removeOldestCover() {
+    let oldest = Number.MAX_SAFE_INTEGER;
+    let discordID;
+    for (const cover of previousCovers) {
+        if (cover.addedAt < oldest) {
+            oldest = cover.addedAt;
+            discordID = cover.discordID;
+        }
+    }
+    await deleteCover(discordID);
 }
 
 async function resizeImage(buffer) {
