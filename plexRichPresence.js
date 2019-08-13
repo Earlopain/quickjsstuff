@@ -36,20 +36,22 @@ async function setActivity() {
     const allStreams = await plexQuery("/status/sessions");
     let displayThis;
     if (allStreams === undefined) {
+        rpc.clearActivity();
         return;
     }
-
+    let activeStream = false;
     for (const stream of allStreams) {
         if (stream.User.title.toLowerCase() === user) {
-            displayThis = stream;
-            if (displayThis.Player.state === "paused") {
-                rpc.clearActivity();
-                return;
+            if (stream.Player.state !== "paused") {
+                displayThis = stream;
+                activeStream = true;
             }
         }
     }
-    if (!displayThis)
+    if (!activeStream){
+        rpc.clearActivity();
         return;
+    }
     if (playingKey !== displayThis.key) {
         startedPlaying = new Date();
         playingKey = displayThis.key;
