@@ -31,14 +31,18 @@ const plexCLient = new PlexAPI({ "token": secrets.plexservertoken, "hostname": "
 let endTime;
 let resetPlayTime = false;
 
+let alreadySettingActivity = false;
+
 async function setActivity() {
-    if (!rpc)
+    if (alreadySettingActivity)
         return;
+    alreadySettingActivity = true;
     const allStreams = await plexQuery("/status/sessions");
     let displayThis;
     if (allStreams === undefined) {
         resetPlayTime = true;
         rpc.clearActivity();
+        alreadySettingActivity = false;
         return;
     }
     let activeStream = false;
@@ -53,30 +57,57 @@ async function setActivity() {
     if (!activeStream) {
         resetPlayTime = true;
         rpc.clearActivity();
-        return;
-    }
-    if (playingKey !== displayThis.key) {
-        endTime = new Date().getTime() + parseInt(displayThis.duration) - parseInt(displayThis.viewOffset);
-        playingKey = displayThis.key;
-    }
-    if (previousCovers[displayThis.parentRatingKey] === undefined)
-        await uploadCover(displayThis);
-    if(resetPlayTime){
-        resetPlayTime = false;
-        endTime = new Date().getTime() + parseInt(displayThis.duration) - parseInt(displayThis.viewOffset);
     }
 
-    rpc.setActivity({
-        details: displayThis.title,
-        state: displayThis.originalTitle + " - " + displayThis.parentTitle,
-        startTimestamp: new Date().getTime(),
-        endTimestamp: endTime,
-        largeImageKey: 'cover' + displayThis.parentRatingKey,
-        largeImageText: 'Listening to Music',
-        smallImageKey: 'plex',
-        smallImageText: 'Playing',
-        instance: false,
-    });
+    else if (playingKey !== displayThis.key) {
+        endTime = new Date().getTime() + parseInt(displayThis.duration) - parseInt(displayThis.viewOffset);
+        playingKey = displayThis.key;
+
+        if (previousCovers[displayThis.parentRatingKey] === undefined)
+            await uploadCover(displayThis);
+        if (resetPlayTime) {
+            resetPlayTime = false;
+            endTime = new Date().getTime() + parseInt(displayThis.duration) - parseInt(displayThis.viewOffset);
+        }
+
+        setRPC(displayThis);
+        alreadySettingActivity = false;
+
+    }
+}
+
+let displayBuffer;
+let allowedToSet = true;
+
+function setRPC(displayThis) {
+    if (allowedToSet) {
+        rpc.setActivity({
+            details: displayThis.title,
+            state: displayThis.originalTitle + " - " + displayThis.parentTitle,
+            startTimestamp: new Date().getTime(),
+            endTimestamp: endTime,
+            largeImageKey: 'cover' + displayThis.parentRatingKey,
+            largeImageText: 'Listening to Music',
+            smallImageKey: 'plex',
+            smallImageText: 'Playing',
+            instance: false,
+        });
+        allowedToSet = false;
+        setInterval(() => {
+            if (displayBuffer !== undefined) {
+                setRPC(displayBuffer);
+                allowedToSet = true;
+                displayBuffer === undefined;
+            } else {
+                allowedToSet = true;
+            }
+
+        }, 1e3);
+    }
+    else {
+        displayBuffer = displayBuffer;
+    }
+
 }
 
 rpc.on('ready', () => {
@@ -85,7 +116,7 @@ rpc.on('ready', () => {
     //activity can only be set every 15 seconds
     setInterval(() => {
         setActivity();
-    }, 15e3);
+    }, 1e3);
 });
 
 rpc.login({ clientId }).catch(console.error);
