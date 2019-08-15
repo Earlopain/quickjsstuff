@@ -3,6 +3,8 @@ const request = require("request");
 //const sharp = require("sharp");
 const secrets = JSON.parse(fs.readFileSync("./secrets.json"));
 
+//TODO check if player the player windows was closed
+
 
 const DiscordRPC = require('discord-rpc');
 var PlexAPI = require("plex-api");
@@ -19,7 +21,6 @@ try {
 
 
 let playingKey;
-let parentKey;
 
 DiscordRPC.register(clientId);
 const rpc = new DiscordRPC.Client({ transport: 'ipc' });
@@ -29,9 +30,10 @@ const user = "earlopain";
 const plexCLient = new PlexAPI({ "token": secrets.plexservertoken, "hostname": "192.168.178.97" });
 
 let endTime;
-let resetPlayTime = false;
 
 let alreadySettingActivity = false;
+let currentDisplayThis;
+let notPlayingAnythingTimerClear;
 
 async function setActivity() {
     if (alreadySettingActivity)
@@ -39,14 +41,19 @@ async function setActivity() {
     alreadySettingActivity = true;
     const allStreams = await plexQuery("/status/sessions");
     let displayThis;
-    if (allStreams === undefined) {
-        resetPlayTime = true;
-        rpc.clearActivity();
+    if (allStreams.size === 0) {
+        notPlayingAnythingTimerClear = setTimeout(() => {
+            setRPC("");
+        }, 5e3);
         alreadySettingActivity = false;
         return;
     }
+    if(notPlayingAnythingTimerClear !== undefined){
+        clearTimeout(notPlayingAnythingTimerClear);
+        notPlayingAnythingTimerClear = undefined;
+    }
     let activeStream = false;
-    for (const stream of allStreams) {
+    for (const stream of allStreams.Metadata) {
         if (stream.User.title.toLowerCase() === user) {
             if (stream.Player.state !== "paused") {
                 displayThis = stream;
@@ -55,25 +62,23 @@ async function setActivity() {
         }
     }
     if (!activeStream) {
-        resetPlayTime = true;
-        rpc.clearActivity();
+        setRPC("");
+    }
+    else if (currentDisplayThis !== "" && playingKey === displayThis.key) {
+        firstTime = false;
     }
 
-    else if (playingKey !== displayThis.key) {
+    else if (currentDisplayThis !== displayThis) {
         endTime = new Date().getTime() + parseInt(displayThis.duration) - parseInt(displayThis.viewOffset);
+
         playingKey = displayThis.key;
 
         if (previousCovers[displayThis.parentRatingKey] === undefined)
             await uploadCover(displayThis);
-        if (resetPlayTime) {
-            resetPlayTime = false;
-            endTime = new Date().getTime() + parseInt(displayThis.duration) - parseInt(displayThis.viewOffset);
-        }
 
         setRPC(displayThis);
-        alreadySettingActivity = false;
-
     }
+    alreadySettingActivity = false;
 }
 
 let displayBuffer;
@@ -81,33 +86,38 @@ let allowedToSet = true;
 
 function setRPC(displayThis) {
     if (allowedToSet) {
-        rpc.setActivity({
-            details: displayThis.title,
-            state: displayThis.originalTitle + " - " + displayThis.parentTitle,
-            startTimestamp: new Date().getTime(),
-            endTimestamp: endTime,
-            largeImageKey: 'cover' + displayThis.parentRatingKey,
-            largeImageText: 'Listening to Music',
-            smallImageKey: 'plex',
-            smallImageText: 'Playing',
-            instance: false,
-        });
+        if (currentDisplayThis === displayThis)
+            return;
+        currentDisplayThis = displayThis;
+        if (displayThis === "") {
+            rpc.clearActivity();
+        }
+        else {
+            rpc.setActivity({
+                details: displayThis.title,
+                state: displayThis.grandparentTitle + " - " + displayThis.parentTitle,
+                startTimestamp: new Date().getTime(),
+                endTimestamp: endTime,
+                largeImageKey: 'cover' + displayThis.parentRatingKey,
+                largeImageText: 'Listening to Music',
+                smallImageKey: 'plex',
+                smallImageText: 'Playing',
+                instance: false,
+            });
+        }
         allowedToSet = false;
-        setInterval(() => {
+        setTimeout(() => {
             if (displayBuffer !== undefined) {
                 setRPC(displayBuffer);
-                allowedToSet = true;
                 displayBuffer === undefined;
             } else {
                 allowedToSet = true;
             }
-
-        }, 1e3);
+        }, 15e3);
     }
     else {
         displayBuffer = displayBuffer;
     }
-
 }
 
 rpc.on('ready', () => {
@@ -124,7 +134,7 @@ rpc.login({ clientId }).catch(console.error);
 async function plexQuery(string) {
     return new Promise(resolve => {
         plexCLient.query(string).then(function (result) {
-            resolve(result.MediaContainer.Metadata);
+            resolve(result.MediaContainer);
         }, function (err) {
             console.error("Could not connect to server", err);
         });
