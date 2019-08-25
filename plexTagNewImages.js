@@ -123,7 +123,7 @@ function escapeTag(tag) {
 
 function getTagFromFile(tag) {
     tag = tag.replace(/\//g, "*");
-    if (!fs.existsSync("./e621tags/" + tag + ".json"))
+    if (!fs.existsSync(__dirname + "/e621tags/" + tag + ".json"))
         return undefined;
     return JSON.parse(fs.readFileSync(__dirname + "/e621tags/" + tag + ".json"));
 }
