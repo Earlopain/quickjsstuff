@@ -38,8 +38,14 @@ let notPlayingAnythingTimerClear;
 async function setActivity() {
     if (alreadySettingActivity)
         return;
+    let allStreams;
     alreadySettingActivity = true;
-    const allStreams = await plexQuery("/status/sessions");
+    try {
+        allStreams = await plexQuery("/status/sessions");
+    } catch (error) {
+        console.log(error);
+        return;
+    }
     let displayThis;
     if (allStreams.size === 0) {
         notPlayingAnythingTimerClear = setTimeout(() => {
