@@ -7,7 +7,7 @@ const availableParsers = fs.readdirSync(__dirname + "/parser/custom");
 
 const compiledParser = [];
 
-const options = { "doUpdate" : true, "downloadFolder" : downloadFolder, "startFromBeginning" : true};
+const options = { "updateOnly" : true, "downloadFolder" : downloadFolder, "startFromBeginning" : false};
 
 for (const parserFile of availableParsers) {
     const parser = require(__dirname + "/parser/custom/" + parserFile)

@@ -6,12 +6,16 @@ class WebComic {
     constructor(Parser, options) {
         this.parser = new Parser(options);
         for (const functionName of Object.getOwnPropertyNames(ParserAbstract.prototype)) {
-            if(this.parser["__proto__"][functionName] === undefined){
+            if (this.parser["__proto__"][functionName] === undefined) {
                 throw new Error("The parser must implement the function " + functionName);
             }
         }
         this.name = Parser.fullName;
         this.options = options;
+        if (!fs.existsSync(this.options.downloadFolder + "/" + this.name)) {
+            fs.mkdirSync(this.options.downloadFolder + "/" + this.name);
+            console.log("Comic folder created")
+        }
     }
 
     async getFollowingPage() {
@@ -19,15 +23,10 @@ class WebComic {
     }
 
     async download() {
+        this.parser.orderFiles();
         console.log("Downloading " + this.name);
-        let currentPage;
-        while((currentPage = await this.getFollowingPage()) !== "stop"){
-            const status = await currentPage.download(this.name, this.options);
-            if(status === "stop"){
-                console.log(currentPage.index + " already downloaded");
-                return;
-            }
-        }
+        while (await this.getFollowingPage() !== "stop") { }
+        this.parser.orderFiles();
         this.parser.logFile.justUpdate = true;
         this.parser.saveLogFile();
     }
@@ -44,12 +43,9 @@ class ComicPage {
         const downloadFolder = options.downloadFolder;
         const bin = await util.getBinary(this.imageURL);
         const ext = this.imageURL.split(".").pop();
-        if (!fs.existsSync(downloadFolder + "/" + comicName)) {
-            fs.mkdirSync(downloadFolder + "/" + comicName);
-            console.log("Comic folder created")
-        }
         if (fs.existsSync(downloadFolder + "/" + comicName + "/" + this.index + "." + ext)) {
-            return "stop";
+            if (this.index >= 0)
+                return "stop";
         }
         console.log(this.imageURL + " downloaded");
         fs.writeFileSync(downloadFolder + "/" + comicName + "/" + this.index + "." + ext, bin, "binary");
