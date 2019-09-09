@@ -1,93 +1,79 @@
 const request = require('request');
 const fs = require('fs');
-const url = "https://e621.net/post/show.json?id=";
-const saveTo = "/media/earlopain/External/Pictures/e621";
-const alreadyDownloaded = fs.readdirSync(saveTo + "/all");
-
-alreadyDownloaded.forEach((file, index) => {
-    alreadyDownloaded[index] = file.split(".")[0];
-});
-const regex = /post\/show\/([0-9]*)/g;
 const readline = require('readline');
-const crypto = require('crypto');
+
+
+const jsonURL = "https://e621.net/post/show.json?id=";
+const saveTo = "/media/earlopain/External/Pictures/e621";
+
+const allFiles = fs.readdirSync(saveTo + "/all");
+const downloadedFiles = fs.readdirSync(saveTo).filter(element => element !== "all");
+const alreadyDownloaded = allFiles.concat(downloadedFiles).map(element => {
+    return element.split(".")[0];
+});
 
 const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout
 });
-let urls = [];
 
-rl.question("URLS: ", (answer) => {
-    let str = answer
-    let results = [];
-    let m;
-    do {
-        m = regex.exec(str);
-        if (m) {
-            results.push(m[1]);
+async function main() {
+    for (const id of await getUserInput()) {
+        const postJSON = await getJSON(jsonURL + id);
+        if (postJSON.status === "deleted") {
+            console.log("Post " + postJSON.md5 + " (" + id + ") is deleted");
+            continue;
         }
-    } while (m);
+        
+        if (alreadyDownloaded.includes(postJSON.md5)) {
+            console.log(postJSON.md5 + " already downloaded");
+            continue;
+        }
+        await writeFile(postJSON.file_url);
+        console.log(postJSON.md5 + " finished");
+    }
+}
 
-    next(results[0]);
+main();
 
-    function next(id) {
-        getURL(id).then(resolve => {
-            if (resolve.status !== "active" && resolve.status !== "pending" && resolve.status !== "flagged") {
-                console.log("Post " + resolve.id + " (" + id + ")" + "is status: " + resolve.status);
-                urls.push(undefined);
-            }
-            else {
-                let filehash = toMD5(saveTo + "/" + resolve.md5 + "." + resolve.file_ext);
-                if (filehash === resolve.md5 || alreadyDownloaded.includes(resolve.md5)) {
-                    console.log(resolve.md5 + " already downloaded");
-                    urls.push(undefined);
+async function getUserInput() {
+    const regex = /post\/show\/([0-9]*)/g;
+    return new Promise(resolve => {
+        let results = [];
+        rl.question("URLS: ", (answer) => {
+            let m;
+            do {
+                m = regex.exec(answer);
+                if (m) {
+                    results.push(m[1]);
                 }
-                else
-                    urls.push(resolve.file_url);
-            }
-            if (urls.length !== results.length) {
-                next(results[urls.length]);
-            }
-            else {
-                writeFile(urls.pop());
-            }
+            } while (m);
+            resolve(results);
+            rl.close();
         });
-    }
-    rl.close();
-});
+    });
+}
 
-function writeFile(url) {
-    if (urls.length === 0 && url === undefined)
-        return;
-    if (url === undefined) {
-        writeFile(urls.pop());
-        return;
-    }
+async function writeFile(url) {
     const filename = url.split("/")[url.split("/").length - 1];
-
-    file = request(url).pipe(fs.createWriteStream(saveTo + "/" + filename));
-    file.on('finish', function () {
-        console.log(filename.split(".")[0] + " finished");
-        writeFile(urls.pop());
-    });
+    const bin = await getBinary(url);
+    fs.writeFileSync(saveTo + "/" + filename, bin, "binary");
 }
 
-function getURL(id) {
+
+async function getBinary(url) {
+    return await getURL(url, "binary");
+}
+
+async function getJSON(url) {
+    const json = await getURL(url, "utf8");
+    return JSON.parse(json);
+}
+
+async function getURL(url, formating) {
     return new Promise(function (resolve, reject) {
-        request(url + id, { headers: { 'User-Agent': 'request' } }, (error, response, body) => {
-            console.log(url + id);
-            body = JSON.parse(body);
+        request.get({ url: url, headers: { "User-Agent": 'e621downloader/earlopain' }, encoding: formating }, async (error, response, body) => {
             resolve(body);
-        })
+        });
     });
-}
-
-function toMD5(path) {
-    try {
-        const data = fs.readFileSync(path);
-        return crypto.createHash("md5").update(data).digest("hex");
-    }
-    catch (e) {
-        return "";
-    }
 }
