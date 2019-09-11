@@ -1,6 +1,5 @@
 const request = require("request");
-const fs = require("fs");
-
+const ParserBase = require("./parser/parserAbstact");
 
 async function getBinary(url) {
     return await getURL(url, "binary");
@@ -23,9 +22,49 @@ async function getURL(url, formating) {
     });
 }
 
+const baseClass = new ParserBase();
+
+function validateParser(parser) {
+    let result = "";
+    const parserMembers = Object.keys(parser);
+    for (const member of Object.keys(baseClass)) {
+        if (parserMembers.indexOf(member) === -1) {
+            result += "    " + member + " missing (member)\n";
+        }
+    }
+
+    const parserMethods = Object.getOwnPropertyNames(parser.__proto__);
+    for (const method of Object.getOwnPropertyNames(baseClass.__proto__)) {
+        if (parserMethods.indexOf(method) === -1) {
+            result += "    " + method + " missing (method)\n";
+        }
+    }
+
+    if (result !== "")
+        result = parser.filename + "\n" + result;
+    return result;
+}
+
+function validateParserStatic(parser) {
+    let result = "";
+    const a = ParserBase;
+    const parserStatic = Object.keys(parser);
+    for (const static of Object.keys(ParserBase)) {
+        if (parserStatic.indexOf(static) === -1) {
+            result += "    " + static + " missing (static)\n";
+        }
+    }
+
+    if (result !== "")
+        result = parser.filename + "\n" + result;
+    return result;
+}
+
 const logDir = __dirname + "/persist";
 
 exports.getBinary = getBinary;
 exports.getHTML = getHTML;
 exports.getURL = getURL;
 exports.logDir = logDir;
+exports.validateParser = validateParser;
+exports.validateParserStatic = validateParserStatic;
