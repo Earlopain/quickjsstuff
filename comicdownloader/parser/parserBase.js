@@ -48,7 +48,7 @@ class ParserBase {
             else
                 return (this.mainPage + url).replace(/\/\//g, (i => m => !i++ ? m : '/')(0));   //remove double slashes exept the one after http(s)
         }
-        throw new Error("No element found for " + cssSelectors + "on " + this.nextPageURL);
+        return null;
     }
 
     async getFollowingPage() {
