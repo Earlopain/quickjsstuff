@@ -9,7 +9,6 @@ class ParserBase {
         if (this.constructor === ParserBase) {
             throw new Error("Abstract Class");
         }
-
         this.options = downloadOptions;
         if (this.options.updateOnly === true) {
             this.options.startFromBeginning = false;
@@ -19,42 +18,74 @@ class ParserBase {
         this.currentDOM;
         this.logFile;
         this.actualCurrentURL;
+        this.nextPageURL;
         this.fullName = this.__proto__.constructor.fullName;
         this.getLogfile();
     }
 
+    getNextPageURL() {
+        return this.constructURL(this.cssSelectorNext, "href");
+    }
+
+    getPreviousPageURL() {
+        return this.constructURL(this.cssSelectorPrevious, "href");
+    }
+
+    getImageURL() {
+        return this.constructURL(this.cssSelectorImage, "src");
+    }
+
+    constructURL(cssSelectors, property) {
+        if (typeof cssSelectors === "string")
+            cssSelectors = [cssSelectors];
+        for (const selector of cssSelectors) {
+            const selected = this.document.querySelector(selector);
+            if (selected === null)
+                continue;
+            const url = selected[property];
+            if (url.startsWith("http"))
+                return url;
+            else
+                return (this.mainPage + url).replace(/\/\//g, (i => m => !i++ ? m : '/')(0));   //remove double slashes exept the one after http(s)
+        }
+        throw new Error("No element found for " + cssSelectors + "on " + this.nextPageURL);
+    }
+
     async getFollowingPage() {
-        let nextPageURL;
+        const validity = util.validateParser(this);
+        if (validity !== "") {
+            throw new Error(validity);
+        }
         if (this.currentDOM === undefined) {
             if (this.options.startFromBeginning)
-                nextPageURL = this.getStartURL();
+                this.nextPageURL = this.getStartURL();
             else
-                nextPageURL = await this.getActualCurrentURL();
+                this.nextPageURL = await this.getActualCurrentURL();
         } else {
             if ((this.options.startFromBeginning && this.noNextPage()) || (!this.options.startFromBeginning && this.noPreviousPage()))
                 return "stop";
             if (this.options.startFromBeginning)
-                nextPageURL = this.getNextPageURL();
+                this.nextPageURL = this.getNextPageURL();
             else
-                nextPageURL = this.getPreviousPageURL();
+                this.nextPageURL = this.getPreviousPageURL();
         }
-        if (this.options.continueOnAlreadyDownloaded === false && this.logFile.downloaded[nextPageURL] !== undefined)
+        if (this.options.continueOnAlreadyDownloaded === false && this.logFile.downloaded[this.nextPageURL] !== undefined)
             return "stop";
 
-        const pageHTML = await util.getHTML(nextPageURL);
+        const pageHTML = await util.getHTML(this.nextPageURL);
         this.currentDOM = new JSDOM(pageHTML);
         this.document = this.currentDOM.window.document;
         const imageURL = this.getImageURL();
         let comicPage;
         if (this.options.startFromBeginning) {
-            comicPage = new comicClass.ComicPage(this.currentPage, imageURL, nextPageURL);
+            comicPage = new comicClass.ComicPage(this.currentPage, imageURL, this.nextPageURL);
         }
         else {
-            comicPage = new comicClass.ComicPage(-this.currentPage - 1, imageURL, nextPageURL);
+            comicPage = new comicClass.ComicPage(-this.currentPage - 1, imageURL, this.nextPageURL);
         }
         const status = await comicPage.download(this.fullName, this.options);
         if (status === "stop" && this.options.continueOnAlreadyDownloaded === false) {
-            console.log(currentPage.index + " already downloaded");
+            console.log(imageURL + " already downloaded");
             return "stop";
         }
         this.downloadTracker(comicPage);
@@ -144,7 +175,6 @@ class ParserBase {
             }
             return false;
         }
-
     }
 
     getLogfile() {

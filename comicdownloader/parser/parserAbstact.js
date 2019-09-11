@@ -1,23 +1,22 @@
-class ParserAbstract{
-    constructor(){
+class ParserAbstract {
+
+    constructor() {
+        this.cssSelectorNext = "";
+        this.cssSelectorPrevious = "";
+        this.cssSelectorImage = "";
+        this.mainPage = "";
     }
-    getStartURL(){
+    getStartURL() {
     }
-    getCurrentURL(){
+    getCurrentURL() {
     }
-    getNextPageURL(){
+    noNextPage() {
     }
-    getPreviousPageURL(){
-    }
-    noNextPage(){
-    }
-    noPreviousPage(){
-    }
-    getImageURL(){
+    noPreviousPage() {
     }
 }
 
-ParserAbstract.fullName;
-ParserAbstract.shortName;
+ParserAbstract.fullName = "";
+ParserAbstract.shortName = "";
 
 module.exports = ParserAbstract;
