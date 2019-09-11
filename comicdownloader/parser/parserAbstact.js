@@ -5,10 +5,8 @@ class ParserAbstract {
         this.cssSelectorPrevious = "";
         this.cssSelectorImage = "";
         this.mainPage = "";
-    }
-    getStartURL() {
-    }
-    getCurrentURL() {
+        this.firstPage = "";
+        this.lastPage = "";
     }
     noNextPage() {
     }

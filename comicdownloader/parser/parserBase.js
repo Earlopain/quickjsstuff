@@ -1,5 +1,3 @@
-const jsdom = require("jsdom");
-const { JSDOM } = jsdom;
 const comicClass = require("./../comic.js");
 const util = require("./../util.js");
 const fs = require("fs");
@@ -17,10 +15,18 @@ class ParserBase {
         this.currentPage = 0;
         this.currentDOM;
         this.logFile;
-        this.actualCurrentURL;
         this.nextPageURL;
         this.fullName = this.__proto__.constructor.fullName;
         this.getLogfile();
+    }
+
+    async init() {
+        this.orderFiles();
+        this.lastPage = await this.getActualLastURL();
+        const validity = util.validateParser(this);
+        if (validity !== "") {
+            throw new Error(validity);
+        }
     }
 
     getNextPageURL() {
@@ -46,21 +52,17 @@ class ParserBase {
             if (url.startsWith("http"))
                 return url;
             else
-                return (this.mainPage + url).replace(/\/\//g, (i => m => !i++ ? m : '/')(0));   //remove double slashes exept the one after http(s)
+                return (this.document.location.hostname + url).replace(/\/\//g, (i => m => !i++ ? m : '/')(0));   //remove double slashes exept the one after http(s)
         }
         return null;
     }
 
     async getFollowingPage() {
-        const validity = util.validateParser(this);
-        if (validity !== "") {
-            throw new Error(validity);
-        }
         if (this.currentDOM === undefined) {
             if (this.options.startFromBeginning)
-                this.nextPageURL = this.getStartURL();
+                this.nextPageURL = this.firstPage;
             else
-                this.nextPageURL = await this.getActualCurrentURL();
+                this.nextPageURL = await this.lastPage;
         } else {
             if ((this.options.startFromBeginning && this.noNextPage()) || (!this.options.startFromBeginning && this.noPreviousPage()))
                 return "stop";
@@ -72,8 +74,7 @@ class ParserBase {
         if (this.options.continueOnAlreadyDownloaded === false && this.logFile.downloaded[this.nextPageURL] !== undefined)
             return "stop";
 
-        const pageHTML = await util.getHTML(this.nextPageURL);
-        this.currentDOM = new JSDOM(pageHTML);
+        this.currentDOM = await util.generateDOM(this.nextPageURL);
         this.document = this.currentDOM.window.document;
         const imageURL = this.getImageURL();
         let comicPage;
@@ -93,23 +94,17 @@ class ParserBase {
         return "downloaded";
     }
 
-    async getActualCurrentURL() {
-        if (this.actualCurrentURL !== undefined)
-            return this.actualCurrentURL;
-        const currentURL = this.getCurrentURL();
-        const pageHTML = await util.getHTML(currentURL);
+    async getActualLastURL() {
         const backupDOM = this.currentDOM;
         const backupDoc = this.document;
-        this.currentDOM = new JSDOM(pageHTML);
+        this.currentDOM = await util.generateDOM(this.lastPage);
         this.document = this.currentDOM.window.document;
-        const previousURL = this.getPreviousPageURL();
-        const pageHTMLPrevious = await util.getHTML(previousURL);
-        this.currentDOM = new JSDOM(pageHTMLPrevious);
+        this.currentDOM = await util.generateDOM(this.getPreviousPageURL());
         this.document = this.currentDOM.window.document;
-        this.actualCurrentURL = this.getNextPageURL();
+        const actualLastURL = this.getNextPageURL();
         this.currentDOM = backupDOM;
         this.document = backupDoc;
-        return this.actualCurrentURL;
+        return actualLastURL;
     }
 
     downloadTracker(comicPage) {

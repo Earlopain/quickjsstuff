@@ -1,3 +1,5 @@
+const jsdom = require("jsdom");
+const { JSDOM } = jsdom;
 const request = require("request");
 const ParserBase = require("./parser/parserAbstact");
 
@@ -60,6 +62,11 @@ function validateParserStatic(parser) {
     return result;
 }
 
+async function generateDOM(url){
+    const html = await getHTML(url);
+    return new JSDOM(html, {url: url})
+}
+
 const logDir = __dirname + "/persist";
 
 exports.getBinary = getBinary;
@@ -68,3 +75,4 @@ exports.getURL = getURL;
 exports.logDir = logDir;
 exports.validateParser = validateParser;
 exports.validateParserStatic = validateParserStatic;
+exports.generateDOM = generateDOM;

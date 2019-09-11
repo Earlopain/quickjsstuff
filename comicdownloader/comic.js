@@ -20,7 +20,7 @@ class WebComic {
     }
 
     async download() {
-        this.parser.orderFiles();
+        this.parser.init();
         console.log("Downloading " + this.name);
         while (await this.getFollowingPage() !== "stop") { }
         this.parser.orderFiles();
