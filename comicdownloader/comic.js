@@ -1,19 +1,16 @@
 const util = require("./util.js");
 const fs = require("fs");
-const ParserAbstract = require("./parser/parserAbstact");
 
 class WebComic {
-    constructor(Parser, options) {
-        this.parser = new Parser(options);
-        for (const functionName of Object.getOwnPropertyNames(ParserAbstract.prototype)) {
-            if (this.parser["__proto__"][functionName] === undefined) {
-                throw new Error("The parser must implement the function " + functionName);
-            }
+    constructor(parser) {
+        this.parser = parser;
+        const validity = util.validateParser(this.parser);
+        if (validity !== "") {
+            throw new Error(validity);
         }
-        this.name = Parser.fullName;
-        this.options = options;
-        if (!fs.existsSync(this.options.downloadFolder + "/" + this.name)) {
-            fs.mkdirSync(this.options.downloadFolder + "/" + this.name);
+        this.name = parser.fullName;
+        if (!fs.existsSync(this.parser.options.downloadFolder + "/" + this.name)) {
+            fs.mkdirSync(this.parser.options.downloadFolder + "/" + this.name);
             console.log("Comic folder created")
         }
     }
