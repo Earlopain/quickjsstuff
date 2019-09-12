@@ -13,7 +13,7 @@ class ParserBase {
             this.options.continueOnAlreadyDownloaded = false;
         }
         this.currentPage = 0;
-        this.currentDOM;
+        this.document;
         this.logFile;
         this.nextPageURL;
         this.fullName = this.__proto__.constructor.fullName;
@@ -58,7 +58,7 @@ class ParserBase {
     }
 
     async getFollowingPage() {
-        if (this.currentDOM === undefined) {
+        if (this.document === undefined) {
             if (this.options.startFromBeginning)
                 this.nextPageURL = this.firstPage;
             else
@@ -74,8 +74,7 @@ class ParserBase {
         if (this.options.continueOnAlreadyDownloaded === false && this.logFile.downloaded[this.nextPageURL] !== undefined)
             return "stop";
 
-        this.currentDOM = await util.generateDOM(this.nextPageURL);
-        this.document = this.currentDOM.window.document;
+        this.document = (await util.generateDOM(this.nextPageURL)).window.document;
         const imageURL = this.getImageURL();
         let comicPage;
         if (this.options.startFromBeginning) {
@@ -95,14 +94,10 @@ class ParserBase {
     }
 
     async getActualLastURL() {
-        const backupDOM = this.currentDOM;
         const backupDoc = this.document;
-        this.currentDOM = await util.generateDOM(this.lastPage);
-        this.document = this.currentDOM.window.document;
-        this.currentDOM = await util.generateDOM(this.getPreviousPageURL());
-        this.document = this.currentDOM.window.document;
+        this.document = (await util.generateDOM(this.lastPage)).window.document;
+        this.document = (await util.generateDOM(this.getPreviousPageURL())).window.document;
         const actualLastURL = this.getNextPageURL();
-        this.currentDOM = backupDOM;
         this.document = backupDoc;
         return actualLastURL;
     }
