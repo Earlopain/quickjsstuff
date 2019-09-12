@@ -14,7 +14,7 @@ async function getHTML(url) {
 
 async function getURL(url, formating) {
     return new Promise(function (resolve, reject) {
-        request.get({ url: url, headers: { "User-Agent": 'test' }, encoding: formating }, async (error, response, body) => {
+        request.get({ url: url, headers: { "User-Agent": 'Mozilla/5.0 (Windows NT 6.1; WOW64; rv:54.0) Gecko/20100101 Firefox/69.0' }, encoding: formating }, async (error, response, body) => {
             if (error)
                 debugger;
             if (response.statusCode !== 200 && response.statusCode !== 404)
