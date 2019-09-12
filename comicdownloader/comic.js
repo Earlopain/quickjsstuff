@@ -20,7 +20,7 @@ class WebComic {
     }
 
     async download() {
-        this.parser.init();
+        await this.parser.init();
         console.log("Downloading " + this.name);
         while (await this.getFollowingPage() !== "stop") { }
         this.parser.orderFiles();
@@ -46,6 +46,7 @@ class ComicPage {
         }
         console.log(this.imageURL + " downloaded");
         fs.writeFileSync(downloadFolder + "/" + comicName + "/" + this.index + "." + ext, bin, "binary");
+        return "";
     }
 }
 
