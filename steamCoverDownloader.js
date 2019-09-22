@@ -255,7 +255,14 @@ function requestCallback(error, response, body) {
     }
     else if (response.statusCode !== 200) {
         console.log("Unknown Error");
-        console.log(body || response);
+        console.log("Response:");
+        console.log(body);
+        console.log("Request url:");
+        console.log(response.request.href);
+        if (response.request.body !== undefined){
+            console.log("Request body:");
+            console.log(response.request.body);
+        }
         debugger;
         process.exit();
     }
