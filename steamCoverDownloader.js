@@ -2,10 +2,13 @@ const fs = require("fs");
 const os = require("os");
 const request = require("request");
 
-//User config
+const secrets = JSON.parse(fs.readFileSync("secrets.json"));
 
+//User config
 //Your steam ID
-const steamUserID = "76561198069428143";
+const steamUserID64 = "76561198069428143";
+const steamapikey = secrets.steamapikey;
+const igdbapikey = secrets.igdbapikey;
 //Should covers try to download again, if it failed in the past
 //Maybe the cover got uploaded to igdb since the last run
 const tryDownloadingAgain = false;
@@ -13,14 +16,15 @@ const tryDownloadingAgain = false;
 //if there will be a version on steam, keep the custom one
 const preserveCustomCoverArt = true;
 //You can manually specify it, if it is not in the default location. Do not add a trailing slash
+//replace every \ with / in the folder path, for example:
+//let steamFolder = "D:/Steam";
 let steamFolder;
 
+if(steamUserID64.length !== 17){
+    throw new Error("Not a valid steamid. You need your steamid64. Try steamid.io");
+}
+
 const configFile = __dirname + "/steamcovers.json";
-
-const secrets = JSON.parse(fs.readFileSync("secrets.json"));
-
-const steamapikey = secrets.steamapikey;
-const igdbapikey = secrets.igdbapikey;
 
 if (!fs.existsSync(configFile)) {
     console.log("First time running");
@@ -28,7 +32,7 @@ if (!fs.existsSync(configFile)) {
 }
 
 //take the steamid, convert it binary and take the last 32bit. Convert back to decimal
-const steamUserDataNumber = BigInt("0b" + BigInt(steamUserID).toString(2).substr(-32)).toString();
+const steamUserDataNumber = BigInt("0b" + BigInt(steamUserID64).toString(2).substr(-32)).toString();
 if (steamFolder === undefined) {
     switch (process.platform) {
         case "win32":
@@ -36,6 +40,9 @@ if (steamFolder === undefined) {
             break;
         case "linux":
             steamFolder = os.homedir() + "/.steam";
+            if(fs.existsSync(steamFolder + "/steam")){
+                steamFolder = steamFolder + "/steam";
+            }
             break;
         case "darwin":
             steamFolder = os.homedir() + "/Library/Application Support/Steam";
@@ -65,8 +72,8 @@ async function main() {
     const games = (await getAllSteamGames()).filter(value => { return (value.img_icon_url !== "" && value.img_logo_url !== "" && !allDLC.includes(value.appid)) });
     console.log("You have a total of %s games", games.length);
     if (firstRun()) {
-        storage[steamUserID] = {};
-        storage[steamUserID].status = {};
+        storage[steamUserID64] = {};
+        storage[steamUserID64].status = {};
     }
     else {
         console.log("You are not running this for the first time. You will propably see few to no ouput");
@@ -175,15 +182,15 @@ async function main() {
 main();
 
 function currentUser() {
-    return storage[steamUserID];
+    return storage[steamUserID64];
 }
 
 function currentUserBackup() {
-    return storageBackup[steamUserID];
+    return storageBackup[steamUserID64];
 }
 
 function firstRun() {
-    return storage[steamUserID] === undefined || currentUser().status === undefined;
+    return storage[steamUserID64] === undefined || currentUser().status === undefined;
 }
 
 function saveConfigFile() {
@@ -196,7 +203,7 @@ async function saveCoverImage(igdbCoverImageID, appid) {
 //Request related stuff
 
 async function getAllSteamGames() {
-    const url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=" + steamapikey + "&steamid=" + steamUserID + "&include_appinfo=1&include_played_free_games=1";
+    const url = "https://api.steampowered.com/IPlayerService/GetOwnedGames/v1/?key=" + steamapikey + "&steamid=" + steamUserID64 + "&include_appinfo=1&include_played_free_games=1";
     const games = await getJSON(url);
     return games.response.games;
 }
