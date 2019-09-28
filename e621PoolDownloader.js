@@ -133,11 +133,11 @@ async function main() {
             if (!alreadyFound)
                 updateNeeded = true;
         }
-        if (!updateNeeded){
+        if (!updateNeeded) {
             console.log("No update needed");
             continue;
         }
-            
+
 
         fs.mkdirSync(downloadFolder + pool.name + "/tmp")
         for (const localFile of localFiles) {   //move all local files to tmp directory
@@ -164,19 +164,19 @@ async function main() {
             fs.writeFileSync(downloadFolder + pool.name + "/" + (i + 1) + "." + imageURL.substr(69), bin, "binary");
         }
         //remove tmp dir
-        const files = fs.readdirSync(downloadFolder + pool.name + "/tmp").map(element => downloadFolder + pool.name + "/tmp/" + element)
-        if (files.length !== 0) { //create folder to store files
+        const removedFiles = fs.readdirSync(downloadFolder + pool.name + "/tmp").map(element => downloadFolder + pool.name + "/tmp/" + element)
+        if (removedFiles.length !== 0) { //create folder to store files
             if (!fs.existsSync(downloadFolder + "removed/" + pool.name));
             fs.mkdirSync(downloadFolder + "removed/" + pool.name);
         }
-        for (const file of files) {
+        for (const file of removedFiles) {
             //fs.unlinkSync(file)
             const hash = await fileHash(file);
             fs.renameSync(file, downloadFolder + "removed/" + pool.name + "/" + hash + "." + file.split(".").pop());
 
         }
-        totalRemoved += files.length;
-        console.log("%s local files removed", files.length);
+        totalRemoved += removedFiles.length;
+        console.log("%s local files removed", removedFiles.length);
         console.log("%s files fetched", downloadedFilesCount);
         fs.rmdirSync(downloadFolder + pool.name + "/tmp")
         localFiles = fs.readdirSync(downloadFolder + pool.name);
