@@ -251,14 +251,11 @@ async function getURL(url, formating, header = {}) {
 
 
 function requestCallback(error, response, body) {
-    if (error) {
+    if (error || response.statusCode > 500) {
         console.log("Fatal Error");
-        console.log(error);
+        console.log(error || body);
         debugger;
         process.exit();
-    }
-    else if (response.statusCode > 500) {
-        resolve(undefined);
     }
     else if (response.statusCode !== 200) {
         console.log("Unknown Error");
