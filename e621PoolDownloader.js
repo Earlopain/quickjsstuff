@@ -3,6 +3,7 @@ const fs = require("fs");
 const crypto = require("crypto");
 
 const pools = [...new Set(JSON.parse(fs.readFileSync(__dirname + "/pools.json")))];
+const poolsCopy = pools.slice();
 const downloadFolder = "/media/plex/plexmedia/Pictures/e621comics/";
 if (!fs.existsSync(downloadFolder))
     fs.mkdirSync(downloadFolder)
@@ -15,8 +16,11 @@ class Pool {
     async init() {
         let page = 1;
         let json = await getJSON("https://e621.net/pool/show.json?page=" + page + "&id=" + this.id);
+        let previousJSON;
+        let previousRemaining;
         this.name = json.name.replace(/_/g, " ").replace(/\//g, "\\");
         this.size = json.post_count;
+        let remaingPosts = this.size;
         this.images = [];
         this.isActive = json.is_active;
         let updatedAt = json.updated_at.s;
@@ -28,15 +32,27 @@ class Pool {
                 this.init();
                 return;
             }
-
+            if (page !== 1 && json.posts.length > 0 && previousJSON.posts.length !== 24) {
+                console.log("%s deleted posts on page %s", 24 - json.posts.length, page - 1);
+                this.size -= 24 - previousJSON.posts.length;
+                remaingPosts -= 24 - previousJSON.posts.length;
+            }
+            if (page !== 1 && json.posts.length === 0 && previousJSON.posts.length !== previousRemaining) {
+                console.log("%s deleted posts on page %s", previousRemaining - previousJSON.posts.length, page - 1);
+                this.size -= previousRemaining - previousJSON.posts.length;
+                remaingPosts -= previousRemaining - previousJSON.posts.length;
+            }
             for (const post of json.posts) {
                 this.images.push(post.file_url);
             }
-            if (this.images.length === this.size) {
+            previousRemaining = remaingPosts;
+            remaingPosts -= json.posts.length;
+            if (remaingPosts === 0) {
                 console.log("Pool %s(%s) has %s posts", this.id, this.name, this.size)
                 return;
             }
             page++;
+            previousJSON = json;
             json = await getJSON("https://e621.net/pool/show.json?page=" + page + "&id=" + this.id);
         }
     }
