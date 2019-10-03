@@ -15,7 +15,7 @@
             "type": "node",
             "request": "launch",
             "name": "Launch Program",
-            "program": "${workspaceFolder}/e621FavInformation.js",
+            "program": "${workspaceFolder}/e621PoolDownloader.js",
             "console": "internalConsole"
         }
     ]
