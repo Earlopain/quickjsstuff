@@ -2,11 +2,15 @@ const request = require("request");
 const fs = require("fs");
 const crypto = require("crypto");
 
-const pools = [...new Set(JSON.parse(fs.readFileSync(__dirname + "/pools.json")))];
-const poolsCopy = pools.slice();
+const poolFile = __dirname + "/pools.json";
+const poolMapperFile = __dirname + "/poolmapper.json";
+
+const pools = fs.existsSync(poolFile) ? [...new Set(JSON.parse(fs.readFileSync(poolFile)))] : [];
+const poolMapper = fs.existsSync(poolMapperFile) ? JSON.parse(fs.readFileSync(poolMapperFile)) : {};
 const downloadFolder = "/media/plex/plexmedia/Pictures/e621comics/";
-if (!fs.existsSync(downloadFolder))
-    fs.mkdirSync(downloadFolder)
+if (!fs.existsSync(downloadFolder)){
+    fs.mkdirSync(downloadFolder);
+}
 
 class Pool {
     constructor(id) {
@@ -18,7 +22,11 @@ class Pool {
         let json = await getJSON("https://e621.net/pool/show.json?page=" + page + "&id=" + this.id);
         let previousJSON;
         let previousRemaining;
-        this.name = json.name.replace(/_/g, " ").replace(/\//g, "\\");
+        if(poolMapper[this.id] === undefined){
+            poolMapper[this.id] = json.name.replace(/_/g, " ").replace(/\//g, "\\");
+            fs.writeFileSync(poolMapperFile, JSON.stringify(poolMapper, null, 4), "utf8");
+        }
+        this.name = poolMapper[this.id];
         this.size = json.post_count;
         let remaingPosts = this.size;
         this.images = [];
