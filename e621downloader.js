@@ -4,14 +4,21 @@ const fs = require('fs');
 const secrets = JSON.parse(fs.readFileSync("./secrets.json"));
 
 const jsonURL = "https://e621.net/post/show.json?";
-const saveTo = "/media/earlopain/plex/plexmedia/Pictures/e621";
+const saveTo = "/media/plex/plexmedia/Pictures/e621";
+const saveToAnimation = "/media/plex/plexmedia/Pictures/e621animation";
+const saveToSafe = "/media/plex/plexmedia/Pictures/e621safe";
+
+[saveTo, saveToAnimation, saveToSafe].forEach(element => {
+    if (!fs.existsSync(element)) {
+        fs.mkdirSync(element);
+    }
+});
 
 
 const baseURLFav = "https://e621.net/favorite/create.json?login=earlopain&password_hash=" + secrets.e621passwordhash + "&id=";
 const baseURLUpvote = "https://e621.net/post/vote.json?login=earlopain&password_hash=" + secrets.e621passwordhash + "&score=1&id=";
 
-const allFiles = fs.readdirSync(saveTo);
-const alreadyDownloaded = allFiles.map(element => {
+const alreadyDownloaded = fs.readdirSync(saveTo).concat(fs.readdirSync(saveToAnimation), fs.readdirSync(saveToSafe)).map(element => {
     return element.split(".")[0];
 });
 
@@ -32,7 +39,7 @@ async function main() {
         const result = await postJSON(baseURLUpvote + json.id);
         if (result.change === -1)
             await postJSON(baseURLUpvote + id);
-        await writeFile(json.file_url);
+        await writeFile(json);
         console.log(json.md5 + " finished");
     }
     console.log("Done");
@@ -60,10 +67,24 @@ function getUserInput(input) {
     return results;
 }
 
-async function writeFile(url) {
+async function writeFile(json) {
+    const url = json.file_url;
     const filename = url.split("/")[url.split("/").length - 1];
     const bin = await getBinary(url);
-    fs.writeFileSync(saveTo + "/" + filename, bin, "binary");
+
+    let folder;
+
+    if (json.rating === "s" || json.rating === "q") {
+        folder = saveToSafe;
+    }
+    else if (json.file_ext === "gif" || json.file_ext === "swf" || json.file_ext === "webm") {
+        folder = saveToAnimation;
+    }
+    else {
+        folder = saveTo;
+    }
+
+    fs.writeFileSync(folder + "/" + filename, bin, "binary");
 }
 
 
