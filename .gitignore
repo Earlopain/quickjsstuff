@@ -6,11 +6,9 @@ steamemotes
 steamusers
 *.log
 *.html
-*.db
+*.db*
 secrets.json
 previousFiles.txt
 imageKey.json
 persist
 steamcovers.json
-package-lock.json
-launch.json
