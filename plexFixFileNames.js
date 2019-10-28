@@ -14,9 +14,6 @@ let preparedUpdate = db.prepare("UPDATE metadata_items SET title = ? WHERE id = 
 
 for (const item of items) {
     const newName = item.title.replace(/_/g, " ");
-    if(newName === item.title){
-        continue;
-    }
     preparedUpdate.run(newName, item.id);
 }
 
