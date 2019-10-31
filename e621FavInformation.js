@@ -189,6 +189,7 @@ async function getJSONFromFavorites(username) {
             saveToDisk(getJSONToSave(apiJSON));
         }
     }
+    finalSave();
     let onlineFavsMd5 = onlineFavsJSON.filter(element => { return element.md5 !== undefined }).map(element => { if (!element.md5) debugger; return element.md5 });
 
     const localImagesMd5Only = localImages.map(element => { return element.md5 })
@@ -197,54 +198,49 @@ async function getJSONFromFavorites(username) {
         const jsonImage = keyPairJSON[favID];
         if (localImagesMd5Only.includes(jsonImage.md5))
             continue;
-        else {
             //check if better version is on disk
-            let betterOnDisk = false;
-            let betterID;
-            for (const post of Object.keys(keyPairJSON).map(key => { return keyPairJSON[key] })) {
-                if (post.parent_id === null && post.delreason !== undefined) {
-                    const split = post.delreason.split("Inferior version/duplicate of post #");
-                    if (post.delreason.startsWith("Inferior version/duplicate of post") && parseInt(split[1]).toString().length === split[1].length)
-                        post.parent_id = split[1];
-                }
-                if (post.parent_id === favID || jsonImage.parent_id === post.id) {
-                    if (post.status === "active" && jsonImage.status === "active")
-                        continue;
-                    betterOnDisk = true;
-                    betterID = post.id;
-                    break;
-                }
+        let betterOnDisk = false;
+        let betterID;
+        for (const post of Object.keys(keyPairJSON).map(key => { return keyPairJSON[key] })) {
+            if (post.parent_id === null && post.delreason !== undefined) {
+                const split = post.delreason.split("Inferior version/duplicate of post #");
+                if (post.delreason.startsWith("Inferior version/duplicate of post") && parseInt(split[1]).toString().length === split[1].length)
+                    post.parent_id = split[1];
             }
-            if (betterOnDisk) {
-                betterVersionOnDisk.push(jsonImage);
-                betterVersionInferior[betterID] = jsonImage.md5;
-                continue;
+            if (post.parent_id === favID || jsonImage.parent_id === post.id) {
+                if (post.status === "active" && jsonImage.status === "active")
+                    continue;
+                betterOnDisk = true;
+                betterID = post.id;
+                break;
             }
-            else {
-                if (ignoreNotDownloaded.includes(jsonImage.md5))
-                    notDownloadedIgnored.push(jsonImage.md5);
-                else {
-                    if (autoDownloadNotDownloaded && jsonImage.md5) {
-                        const fileContent = await new Promise(resolve => {
-                            request({
-                                method: "GET", uri: encodeURI("https://static1.e621.net/data/" + jsonImage.md5.slice(0, 2) + "/" + jsonImage.md5.slice(2, 4) + "/" + jsonImage.md5 + "." + jsonImage.file_ext), headers: {
-                                }, encoding: null
-                            }, (error, response, body) => {
-                                if (error)
-                                    debugger;
-                                resolve(body);
-                            });
-                        });
-                        if (fs.existsSync(imageFolder + "/" + jsonImage.md5 + "." + jsonImage.file_ext))
+        }
+        if (betterOnDisk) {
+            betterVersionOnDisk.push(jsonImage);
+            betterVersionInferior[betterID] = jsonImage.md5;
+            continue;
+        }
+        if (ignoreNotDownloaded.includes(jsonImage.md5))
+            notDownloadedIgnored.push(jsonImage.md5);
+        else {
+            if (autoDownloadNotDownloaded && jsonImage.md5) {
+                const fileContent = await new Promise(resolve => {
+                    request({
+                        method: "GET", uri: encodeURI("https://static1.e621.net/data/" + jsonImage.md5.slice(0, 2) + "/" + jsonImage.md5.slice(2, 4) + "/" + jsonImage.md5 + "." + jsonImage.file_ext), headers: {
+                        }, encoding: null
+                    }, (error, response, body) => {
+                        if (error)
                             debugger;
-                        else
-                            fs.writeFileSync(imageFolder + "/" + jsonImage.md5 + "." + jsonImage.file_ext, fileContent, "binary");
-                    }
-                    else
-                        notDownloaded.push(jsonImage.md5 || jsonImage.id);
-                }
-                continue;
+                        resolve(body);
+                    });
+                });
+                if (fs.existsSync(imageFolder + "/" + jsonImage.md5 + "." + jsonImage.file_ext))
+                    debugger;
+                else
+                    fs.writeFileSync(imageFolder + "/" + jsonImage.md5 + "." + jsonImage.file_ext, fileContent, "binary");
             }
+            else
+                notDownloaded.push(jsonImage.md5 || jsonImage.id);
         }
     }
     timeStop("favIDs loop");
@@ -275,8 +271,6 @@ async function getJSONFromFavorites(username) {
     }
     timeStop("localImages loop");
     timeStart("notDownloaded loop")
-    let tmp = [];
-    let cpy = notDownloaded;
     const deletedJSONs = notFavedDeleted.concat(betterVersionOnDisk).map(element => { return element.id });
     for (const notDownloadedMD5 of notDownloaded) {
         const notDownloadedJSON = keyPairJSON[notDownloadedMD5];
@@ -285,16 +279,13 @@ async function getJSONFromFavorites(username) {
             if (notDownloadedJSON.delreason.startsWith("Inferior version/duplicate of post") && parseInt(split[1]).toString().length === split[1].length) {
                 const superiorID = parseInt(split[1]);
                 if (!deletedJSONs.includes(superiorID))
-                    tmp.push(keyPairJSON[notDownloadedMD5]);
+                    notDownloaded.push(keyPairJSON[notDownloadedMD5]);
             }
             else
-                tmp.push(keyPairJSON[notDownloadedMD5]);
+            notDownloaded.push(keyPairJSON[notDownloadedMD5]);
         }
-        else
-            keyPairJSON[notDownloadedMD5]
     }
     timeStop("notDownloaded loop");
-    notDownloaded = tmp;
 
     const logging = false;
     if (logging) {
@@ -318,14 +309,14 @@ async function getJSONFromFavorites(username) {
         }
     }
 
-    // console.log(localImages.length + " local files");
-    // console.log("   " + notFaved.length + " of those are not faved");
-    // console.log("   " + notFavedIsInferior.length + " of those are not faved, but there is an superior version available");
-    // console.log("   " + notFavedDeleted.length + " of those are deleted from e621");
-    // console.log("");
-    // console.log((favIDs.length) + " online favorites");
-    // console.log("   " + notDownloaded.length + " of those don't have a local copy");
-    // console.log("   " + betterVersionOnDisk.length + " of those are higher quality than available online");
+    console.log(localImages.length + " local files");
+    console.log("   " + notFaved.length + " of those are not faved");
+    console.log("   " + notFavedIsInferior.length + " of those are not faved, but there is an superior version available");
+    console.log("   " + notFavedDeleted.length + " of those are deleted from e621");
+    console.log("");
+    console.log((favIDs.length) + " online favorites");
+    console.log("   " + notDownloaded.length + " of those don't have a local copy");
+    console.log("   " + betterVersionOnDisk.length + " of those are higher quality than available online");
     timeStop("get favjson");
     return faved.concat(notFavedDeleted).concat(inferiorSuperiorPair.map(element => { return element.superior }));
 
@@ -333,8 +324,14 @@ async function getJSONFromFavorites(username) {
         jsonToSave.push(json);
         if (jsonToSave.length < 50)
             return;
-        fs.writeFileSync(extraInfoFolder + "/posts.json", JSON.stringify(files.concat(jsonToSave), null, 4));
+        files = files.concat(jsonToSave);
+        fs.writeFileSync(extraInfoFolder + "/posts.json", JSON.stringify(files, null, 4));
         jsonToSave = [];
+    }
+
+    function finalSave() {
+        files = files.concat(jsonToSave);
+        fs.writeFileSync(extraInfoFolder + "/posts.json", JSON.stringify(files, null, 4));
     }
 
     async function addDeletedStuff(json) {
