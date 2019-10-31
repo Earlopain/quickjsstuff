@@ -2,8 +2,7 @@ const fs = require("fs");
 const request = require("request");
 const gm = require("gm").subClass({ imageMagick: true });
 
-const jsonFolder = "./e621posts";
-const imageFolder = "/media/earlopain/External/Pictures/e621/all";
+const imageFolder = "/run/media/earlopain/plex/plexmedia/e621/explicit";
 const extraInfoFolder = "./e621extra"
 const username = "earlopain";
 const invalidateLocalUserFavs = false;
@@ -107,7 +106,7 @@ async function getJSONFromFavorites(username) {
         files = JSON.parse(fs.readFileSync(extraInfoFolder + "/posts.json"));
     const localImages = fs.readdirSync(imageFolder).filter(element => { const split = element.split("."); return split.length === 2 && split[0].length === 32 }).map(element => { const split = element.split("."); return { "md5": split[0], "ext": split[1] } });
     const extraDownload = [];
-    const jsonToSave = [];
+    let jsonToSave = [];
     for (const image of localImages) {
         if (files.indexOf(image.md5 + ".json") === -1)
             extraDownload.push(image.md5);
@@ -314,7 +313,7 @@ async function getJSONFromFavorites(username) {
         for (const json of notFaved) {
             console.log(json.md5 + " not faved");
         }
-        for (const json of notDownloaded) {
+        for (const notDownloadedMD5 of notDownloaded) {
             console.log(notDownloadedMD5 + " not downloaded");
         }
     }
@@ -334,7 +333,7 @@ async function getJSONFromFavorites(username) {
         jsonToSave.push(json);
         if (jsonToSave.length < 50)
             return;
-        fs.writeFileSync(extraInfoFolder + "/posts.json", JSON.stringify(files.concat(jsonArray), null, 4));
+        fs.writeFileSync(extraInfoFolder + "/posts.json", JSON.stringify(files.concat(jsonToSave), null, 4));
         jsonToSave = [];
     }
 
