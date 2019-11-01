@@ -5,10 +5,8 @@ const baseURL = "https://e621.net/post/show.json?"
 
 const whitelist = ["0e2d7c28575fd692ddcf68fc63221d9c"];
 
-let folder = "/media/earlopain/External/Pictures/e621/all";
-folder = folder.replace(/\\/g, "/");
-if (!folder.endsWith("/"))
-    folder = folder + "/";
+let folder = "/run/media/earlopain/plex/plexmedia/e621/explicit";
+const files = fs.readdirSync(folder);
 
 async function main() {
     for (const file of files) {
@@ -16,18 +14,23 @@ async function main() {
         if (whitelist.includes(md5))
             continue;
         const startJSON = await getPostJSON(md5);
-        let startID = startJSON.id;
         let newID = getNewerVersionID(startJSON);
-        if (startID === newID)
+        if (startJSON.id === newID)
             continue;
+        let encounteredIds = [newID, startJSON.id];
         while (true) {
             const json = await getPostJSON(newID);
             newID = getNewerVersionID(json);
-            if (json.id === newID) {
-                console.log("OLD: " + md5 + " NEW: " + json.id);
+            if(encounteredIds.includes(newID)){
+                console.log("CIRCUAL REFERENCE");
+                console.log(encounteredIds);
                 break;
             }
-
+            encounteredIds.push(newID);
+            if (json.id === newID) {
+                console.log("OLD: " + md5 + " NEW: " + json.md5);
+                break;
+            }
         }
     }
 }
@@ -42,13 +45,16 @@ function getNewerVersionID(json) {
 }
 
 function getPostJSON(post) {
-    let prefix;
-    if (post.length === 32)
-        prefix = "md5="
-    else prefix = "id="
-    return new Promise(function (resolve, reject) {
-        request(baseURL + prefix + post, { headers: { 'User-Agent': "postupdater" } }, (error, response, body) => {
-            resolve(JSON.parse(body));
+    const prefix = post.length === 32 ? "md5=" : "id=";
+    return new Promise(async resolve => {
+        request(baseURL + prefix + post, { headers: { 'User-Agent': "postupdater" } }, async (error, response, body) => {
+            try {
+                resolve(JSON.parse(body));
+            }
+            catch (e) {
+                await new Promise(resolve => {setTimeout(() => {resolve()}, 5000)});
+                resolve(await getPostJSON(post));
+            }
         })
     });
 }
