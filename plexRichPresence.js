@@ -25,7 +25,7 @@ let playingKey;
 DiscordRPC.register(clientId);
 const rpc = new DiscordRPC.Client({ transport: 'ipc' });
 
-const user = "earlopain";
+const users = [1, 23160072];
 
 const plexCLient = new PlexAPI({ "token": secrets.plexservertoken, "hostname": "192.168.178.97" });
 
@@ -60,10 +60,11 @@ async function setActivity() {
     }
     let activeStream = false;
     for (const stream of allStreams.Metadata) {
-        if (stream.User.title.toLowerCase() === user) {
+        if (users.includes(parseInt(stream.User.id))) {
             if (stream.Player.state !== "paused") {
                 displayThis = stream;
                 activeStream = true;
+                break;
             }
         }
     }
@@ -96,10 +97,11 @@ function setRPC(displayThis) {
             return;
         currentDisplayThis = displayThis;
         if (displayThis === "") {
+            console.log("Clearing activity");
             rpc.clearActivity();
         }
         else {
-            rpc.setActivity({
+            const activity = {
                 details: displayThis.title,
                 state: displayThis.grandparentTitle + " - " + displayThis.parentTitle,
                 startTimestamp: new Date().getTime(),
@@ -109,7 +111,10 @@ function setRPC(displayThis) {
                 smallImageKey: 'plex',
                 smallImageText: 'Playing',
                 instance: false,
-            });
+            };
+            console.log("Setting activity to");
+            console.log(activity);
+            rpc.setActivity(activity);
         }
         allowedToSet = false;
         setTimeout(() => {
@@ -128,7 +133,6 @@ function setRPC(displayThis) {
 
 rpc.on('ready', () => {
     setActivity();
-
     //activity can only be set every 15 seconds
     setInterval(() => {
         setActivity();
@@ -158,12 +162,17 @@ async function plexQueryBin(string) {
 }
 
 async function uploadCover(displayThis) {
-    if (Object.keys(previousCovers).length >= 150)
+    if (Object.keys(previousCovers).length >= 145)  //max images is 150, but leave some space for other images
         await removeOldestCover();
     const cover = await getCover(displayThis);
     //const coverResized = await resizeImage(cover);
     const coverBase64 = "data:image/jpeg;base64," + cover.toString("base64");
     const response = await postImage(coverBase64, displayThis);
+    if(isNaN(response.id)){
+        console.log("Discord POST request did not return a id, probably expired webcookie");
+        console.log(response);
+        return;
+    }
     writeCoverKey(displayThis.parentRatingKey, response.id);
 }
 
