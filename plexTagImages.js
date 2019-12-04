@@ -54,10 +54,14 @@ let onlineTagCount = {};
 let tagOverwriteKeys = Object.keys(tagOverwrites)
 async function getTagFilter(files) {
     let filter = [];
+    let artistTagArray = [];
     for (let i = 0; i < files.length; i++) {
         const postJson = await getE621Json(files[i].title);
         const tags = prepareTagArray(postJson.tags.split(" "));
         for (let onlineTagName of tags) {
+            if(artistTagArray.includes(onlineTagName)) {
+                continue;
+            }
             let offlineTagName = onlineTagName;
             for (const key of tagOverwriteKeys) {
                 offlineTagName = offlineTagName.replace(new RegExp(tagOverwrites[key], "g"), key);
@@ -67,8 +71,10 @@ async function getTagFilter(files) {
                 if (new RegExp("^" + whitelisted.split("*").join(".*") + "$").test(offlineTagName))
                     isWhitelisted = true;
             }
-            if (isWhitelisted)
+            if (isWhitelisted) {
                 continue;
+            }
+            let tagIsArtist = false;
             if (onlineTagCount[offlineTagName] === undefined) {
                 let json = getTagFromFile(offlineTagName);
                 if (json === undefined) {
@@ -80,9 +86,15 @@ async function getTagFilter(files) {
                     console.log("Unexpected output for " + onlineTagName);
                     continue;
                 }
+                if (json[0].type === 1) {
+                    tagIsArtist = true;
+                    artistTagArray.push(json[0].name)
+                }
                 onlineTagCount[onlineTagName] = json[0].count;
             }
-            localTagCount[offlineTagName] = localTagCount[offlineTagName] === undefined ? 1 : localTagCount[offlineTagName] + 1;
+            if (!tagIsArtist) {
+                localTagCount[offlineTagName] = localTagCount[offlineTagName] === undefined ? 1 : localTagCount[offlineTagName] + 1;
+            }
         }
     }
     for (const key of Object.keys(localTagCount)) {
@@ -393,7 +405,7 @@ class PlexSong extends PlexFileContent {
         this.duration = data.duration;
         this.filepath = data.Media[0].Part[0].key;
         this.filesize = data.Media[0].Part[0].size;
-        
+
         valueCheck(this);
     }
 }
