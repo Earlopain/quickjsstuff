@@ -36,6 +36,9 @@ async function main() {
             continue;
         }
         const e621json = await getE621Json(file.title);
+		if(e621json.id === undefined) {
+			continue;
+		}
         let tags = e621json.tags.split(" ").filter(tag => tagFilter.indexOf(tag) === -1);
         tags = prepareTagArray(tags);
         const originalFileTags = await file.getAllTags();
@@ -54,6 +57,9 @@ async function getTagFilter(files) {
     let artistTagArray = [];
     for (let i = 0; i < files.length; i++) {
         const postJson = await getE621Json(files[i].title);
+		if(postJson.id === undefined) {
+			continue;
+		}
         const tags = prepareTagArray(postJson.tags.split(" "));
         for (let onlineTagName of tags) {
             if(artistTagArray.includes(onlineTagName)) {
