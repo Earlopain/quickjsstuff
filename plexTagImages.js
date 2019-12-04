@@ -2,9 +2,8 @@ const request = require("request");
 const fs = require("fs");
 
 const server = "http://192.168.178.97:32400";
-const secrets = JSON.parse(fs.readFileSync("./secrets.json"));
-const plexToken = secrets.plexservertoken;
-const sectionName = "e621";
+const plexToken = "fpJx4zeYwyou3KWv4BNX";
+const sectionName = "e621explicit";
 
 const onlineTagCutoff = 30;     //If the tag has less than this many entries, don't send it to the server
 const localTagCutoff = 5;       //How often does it have to appear locally
@@ -36,9 +35,9 @@ async function main() {
             continue;
         }
         const e621json = await getE621Json(file.title);
-		if(e621json.id === undefined) {
-			continue;
-		}
+        if (e621json.id === undefined) {
+            continue;
+        }
         let tags = e621json.tags.split(" ").filter(tag => tagFilter.indexOf(tag) === -1);
         tags = prepareTagArray(tags);
         const originalFileTags = await file.getAllTags();
@@ -57,12 +56,12 @@ async function getTagFilter(files) {
     let artistTagArray = [];
     for (let i = 0; i < files.length; i++) {
         const postJson = await getE621Json(files[i].title);
-		if(postJson.id === undefined) {
-			continue;
-		}
+        if (postJson.id === undefined) {
+            continue;
+        }
         const tags = prepareTagArray(postJson.tags.split(" "));
         for (let onlineTagName of tags) {
-            if(artistTagArray.includes(onlineTagName)) {
+            if (artistTagArray.includes(onlineTagName)) {
                 continue;
             }
             let offlineTagName = onlineTagName;
@@ -93,7 +92,9 @@ async function getTagFilter(files) {
                     tagIsArtist = true;
                     artistTagArray.push(json[0].name)
                 }
-                onlineTagCount[onlineTagName] = json[0].count;
+                if (!tagIsArtist) {
+                    onlineTagCount[onlineTagName] = json[0].count;
+                }
             }
             if (!tagIsArtist) {
                 localTagCount[offlineTagName] = localTagCount[offlineTagName] === undefined ? 1 : localTagCount[offlineTagName] + 1;
@@ -102,12 +103,14 @@ async function getTagFilter(files) {
     }
     for (const key of Object.keys(localTagCount)) {
         const a = localTagCount[key];
-        if (localTagCount[key] < localTagCutoff)
+        if (localTagCount[key] < localTagCutoff) {
             filter.push(key);
+        }
     }
     for (const key of Object.keys(onlineTagCount)) {      //ignore tags with 0 count, probably dnp
-        if (onlineTagCount[key] < onlineTagCutoff && onlineTagCount[key] !== 0 && filter.indexOf(key) === -1)
+        if (onlineTagCount[key] < onlineTagCutoff && onlineTagCount[key] !== 0 && filter.indexOf(key) === -1) {
             filter.push(key);
+        }
     }
     console.log("Total: " + Object.keys(localTagCount).length + " Left: " + (Object.keys(localTagCount).length + tagWhitelist.length - filter.length));
     return filter;
