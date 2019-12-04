@@ -1,27 +1,39 @@
 const request = require("request");
 const fs = require("fs");
 
-const secrets = JSON.parse(fs.readFileSync("./secrets.json"));
-
 const server = "http://192.168.178.97:32400";
+const secrets = JSON.parse(fs.readFileSync("./secrets.json"));
 const plexToken = secrets.plexservertoken;
 const sectionName = "e621";
 
 const onlineTagCutoff = 30;     //If the tag has less than this many entries, don't send it to the server
 const localTagCutoff = 5;       //How often does it have to appear locally
 const tagWhitelist = [];        //Those will not be filtered regardless of the above,
+const tagOverwrites = { "cuntboy": "andromorph", "dickgirl": "gynomorph" };
 //works like on e6, probably
-const lastRun = 1557097673;
-console.log(Math.floor(new Date().getTime() / 1000));
-console.log("Write this into lastRun so only newly added files get parsed");
+if (!fs.existsSync(__dirname + "/previousFiles.txt"))
+    fs.writeFileSync(__dirname + "/previousFiles.txt", "", "utf8")
+if (!fs.existsSync(__dirname + "/e621posts"))
+    fs.mkdirSync(__dirname + "/e621posts")
+if (!fs.existsSync(__dirname + "/e621tags"))
+    fs.mkdirSync(__dirname + "/e621tags")
 async function main() {
     let plexServer = new PlexServer(server, plexToken);
     const sectionID = await plexServer.sectionNameToKey(sectionName);
-    const sectionContent = await plexServer.getAllFromSectionID(sectionID);
-    const files = removeProcessedFiles(sectionContent);
-    console.log("Updating " + files.length + " files");
-    const tagFilter = await getTagFilter(sectionContent.files);
-    for (const file of files) {
+
+    let previousFileKeys = fs.readFileSync(__dirname + "/previousFiles.txt", "utf8").split("\n");
+    previousFileKeys.pop();
+    let currentFiles = (await plexServer.getAllFromSectionID(sectionID)).files;
+    if (previousFileKeys.length === currentFiles.length)
+        return;
+    let newFiles = [];
+    for (const file of currentFiles) {
+        if (!previousFileKeys.includes(file.key))
+            newFiles.push(file);
+    }
+    console.log((currentFiles.length - previousFileKeys.length) + " new Files found, tagging...");
+    const tagFilter = await getTagFilter(currentFiles);
+    for (const file of newFiles) {
         if (file.title.length !== 32) {
             console.log("Key: " + file.key + "  Title: " + file.title + " File: " + 2);
             continue;
@@ -29,51 +41,48 @@ async function main() {
         const e621json = await getE621Json(file.title);
         let tags = e621json.tags.split(" ").filter(tag => tagFilter.indexOf(tag) === -1);
         tags = prepareTagArray(tags);
+        const originalFileTags = await file.getAllTags();
+        if (originalFileTags.length !== 0)
+            continue;
         await file.addTags(tags);
     }
-    console.log("All done!");
-}
-
-function removeProcessedFiles(sectionContent) {
-    let result = [];
-    sectionContent.files.forEach(element => {
-        if (element.addedAt < lastRun)
-            return;
-        result.push(element);
-    });
-    return result;
+    fs.appendFileSync(__dirname + "/previousFiles.txt", newFiles.map(file => file.key).join("\n") + "\n", "utf8")
 }
 
 let localTagCount = {};
 let onlineTagCount = {};
+let tagOverwriteKeys = Object.keys(tagOverwrites)
 async function getTagFilter(files) {
     let filter = [];
     for (let i = 0; i < files.length; i++) {
         const postJson = await getE621Json(files[i].title);
         const tags = prepareTagArray(postJson.tags.split(" "));
-        for (let tag of tags) {
+        for (let onlineTagName of tags) {
+            let offlineTagName = onlineTagName;
+            for (const key of tagOverwriteKeys) {
+                offlineTagName = offlineTagName.replace(new RegExp(tagOverwrites[key], "g"), key);
+            }
             let isWhitelisted = false;
             for (const whitelisted of tagWhitelist) {
-                if (new RegExp("^" + whitelisted.split("*").join(".*") + "$").test(tag))
+                if (new RegExp("^" + whitelisted.split("*").join(".*") + "$").test(offlineTagName))
                     isWhitelisted = true;
             }
             if (isWhitelisted)
                 continue;
-            if (onlineTagCount[tag] === undefined) {
-                let json;
-                json = getTagFromFile(tag);
+            if (onlineTagCount[offlineTagName] === undefined) {
+                let json = getTagFromFile(offlineTagName);
                 if (json === undefined) {
-                    const url = "https://e621.net/tag/index.json?show_empty_tags=1&name=" + tag;
+                    const url = "https://e621.net/tag/index.json?show_empty_tags=1&name=" + onlineTagName;
                     json = await getJSON(url);
-                    saveTagToFile(tag, json);
+                    saveTagToFile(offlineTagName, json);
                 }
-                if (!json[0] || json[1] || escapeTag(json[0].name) !== tag) {
-                    console.log("Unexpected output for " + tag);
+                if (!json[0] || json[1] || !(escapeTag(json[0].name) === offlineTagName || escapeTag(json[0].name) === onlineTagName)) {
+                    console.log("Unexpected output for " + onlineTagName);
                     continue;
                 }
-                onlineTagCount[tag] = json[0].count;
+                onlineTagCount[onlineTagName] = json[0].count;
             }
-            localTagCount[tag] = localTagCount[tag] === undefined ? 1 : localTagCount[tag] + 1;
+            localTagCount[offlineTagName] = localTagCount[offlineTagName] === undefined ? 1 : localTagCount[offlineTagName] + 1;
         }
     }
     for (const key of Object.keys(localTagCount)) {
@@ -90,17 +99,22 @@ async function getTagFilter(files) {
 }
 
 async function getE621Json(md5) {
-    if (fs.existsSync("./e621posts/" + md5 + ".json"))
-        return JSON.parse(fs.readFileSync("./e621posts/" + md5 + ".json"));
+    if (fs.existsSync(__dirname + "/e621posts/" + md5 + ".json"))
+        return JSON.parse(fs.readFileSync(__dirname + "/e621posts/" + md5 + ".json"));
 
     const json = await getJSON("https://e621.net/post/show.json?md5=" + md5);
-    fs.writeFileSync("./e621posts/" + md5 + ".json", JSON.stringify(json, null, 4));
+    fs.writeFileSync(__dirname + "/e621posts/" + md5 + ".json", JSON.stringify(json, null, 4));
     return json;
 }
 
 function prepareTagArray(array) {
     array = array.map(tag => escapeTag(tag))
-    array = array.filter(tag => /^[\x00-\x25\x27-\x3a\x3c-\x7F]*$/.test(tag));//allow only ascii minus & ; => no problems with wierd url chars
+    array = array.filter(tag => /^[\x00-\x25\x27-\x3a\x3c-\x7F]*$/.test(tag)).map(tag => {
+        for (const key of tagOverwriteKeys) {
+            tag = tag.replace(new RegExp(tagOverwrites[key], "g"), key);
+        }
+        return tag;
+    });//allow only ascii minus & ; => no problems with wierd url chars, also overwrite tag if spefified
     return array;
 }
 
@@ -110,14 +124,14 @@ function escapeTag(tag) {
 
 function getTagFromFile(tag) {
     tag = tag.replace(/\//g, "*");
-    if (!fs.existsSync("./e621tags/" + tag + ".json"))
+    if (!fs.existsSync(__dirname + "/e621tags/" + tag + ".json"))
         return undefined;
-    return JSON.parse(fs.readFileSync("./e621tags/" + tag + ".json"));
+    return JSON.parse(fs.readFileSync(__dirname + "/e621tags/" + tag + ".json"));
 }
 
 function saveTagToFile(tag, json) {
     tag = tag.replace(/\//g, "*");
-    fs.writeFileSync("./e621tags/" + tag + ".json", JSON.stringify(json, null, 4));
+    fs.writeFileSync(__dirname + "/e621tags/" + tag + ".json", JSON.stringify(json, null, 4));
 }
 
 function getJSON(url, itteration) {
@@ -188,7 +202,7 @@ class PlexGenericFile {
         await this.server.request("/library/sections/" + this.sectionID + "/all?type=13&id=" + this.key + "&" + tagString, "PUT");
     }
 
-    async  removeTags(tagarray) {
+    async removeTags(tagarray) {
         let tagString = "tag[].tag.tag-=";
         tagarray.forEach((tag, index) => {
             tagString += tag.replace(/_/g, " ") + ",";
@@ -263,9 +277,9 @@ class PlexArtist extends PlexGenericFile {
     }
 }
 
-class PlexFileContent extends PlexGenericFile{
+class PlexFileContent extends PlexGenericFile {
     constructor(data, sectionID, server) {
-        super(data,sectionID, server);
+        super(data, sectionID, server);
         this.filepath = data.Media[0].Part[0].key;
         this.filesize = data.Media[0].Part[0].size;
     }
@@ -351,7 +365,7 @@ class PlexServer {
                     resolve(JSON.parse(body));
                 }
                 catch (e) {
-                    debugger;
+                    resolve(body)
                 }
 
             });
