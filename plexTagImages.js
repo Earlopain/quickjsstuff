@@ -45,7 +45,7 @@ async function main() {
             continue;
         await file.addTags(tags);
     }
-    fs.appendFileSync(__dirname + "/previousFiles.txt", JSON.stringify(previousFileKeys.concat(newFiles.map(e => e.key))), "utf8");
+    fs.writeFileSync(__dirname + "/previousFiles.json", JSON.stringify(previousFileKeys.concat(newFiles.map(e => e.key))), "utf8");
 }
 
 let localTagCount = {};
