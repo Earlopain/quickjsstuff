@@ -11,8 +11,6 @@ const localTagCutoff = 5;       //How often does it have to appear locally
 const tagWhitelist = [];        //Those will not be filtered regardless of the above,
 const tagOverwrites = { "cuntboy": "andromorph", "dickgirl": "gynomorph" };
 //works like on e6, probably
-if (!fs.existsSync(__dirname + "/previousFiles.txt"))
-    fs.writeFileSync(__dirname + "/previousFiles.txt", "", "utf8")
 if (!fs.existsSync(__dirname + "/e621posts"))
     fs.mkdirSync(__dirname + "/e621posts")
 if (!fs.existsSync(__dirname + "/e621tags"))
@@ -21,8 +19,7 @@ async function main() {
     let plexServer = new PlexServer(server, plexToken);
     const sectionID = await plexServer.sectionNameToKey(sectionName);
 
-    let previousFileKeys = fs.readFileSync(__dirname + "/previousFiles.txt", "utf8").split("\n");
-    previousFileKeys.pop();
+    let previousFileKeys = fs.existsSync(__dirname + "/previousFiles.json") ? JSON.parse(fs.readFileSync(__dirname + "/previousFiles.json", "utf8")) : [];
     let currentFiles = (await plexServer.getAllFromSectionID(sectionID)).files;
     if (previousFileKeys.length === currentFiles.length)
         return;
@@ -46,7 +43,7 @@ async function main() {
             continue;
         await file.addTags(tags);
     }
-    fs.appendFileSync(__dirname + "/previousFiles.txt", newFiles.map(file => file.key).join("\n") + "\n", "utf8")
+    fs.appendFileSync(__dirname + "/previousFiles.txt", JSON.stringify(previousFileKeys.concat(newFiles.map(e => e.key))), "utf8");
 }
 
 let localTagCount = {};
