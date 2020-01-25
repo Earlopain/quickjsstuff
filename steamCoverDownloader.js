@@ -93,7 +93,7 @@ async function main() {
             continue;
         }
         //only recheck if entry was not undefined during this run and custom cover art should be deleted
-        if (!preserveCustomCoverArt && recheckCoverStatus && currentUser()[game.appid].steamcoverexists !== true) {
+        if (coverImageExists(game.appid) && !preserveCustomCoverArt && recheckCoverStatus && currentUser()[game.appid].steamcoverexists !== true) {
             currentUser()[game.appid].steamcoverexists = await statusOK("https://steamcdn-a.akamaihd.net/steam/apps/" + game.appid + "/library_600x900_2x.jpg");
             const filePath = steamCoverFolder + "/" + game.appid + "p.jpg";
             if (currentUser()[game.appid].steamcoverexists === true && fs.existsSync(filePath)) {
