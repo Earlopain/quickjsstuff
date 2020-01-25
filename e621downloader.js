@@ -48,20 +48,13 @@ async function main() {
 main();
 
 function getUserInput(input) {
-    const regex1 = /post\/show\/([0-9]*)/g;
-    const regex2 = /md5=([0-9a-z]*)/g;
+    const regex = /post\/show\/([0-9]*)|md5=([0-9a-z]*)/g;
     let results = [];
     let m;
     do {
-        m = regex1.exec(input);
+        m = regex.exec(input);
         if (m) {
-            results.push(m[1]);
-        }
-    } while (m);
-    do {
-        m = regex2.exec(input);
-        if (m) {
-            results.push(m[1]);
+            results.push(m[1] || m[2]);
         }
     } while (m);
     return results;
