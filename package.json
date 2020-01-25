@@ -15,18 +15,23 @@
     "ffmetadata": "^1.5.0",
     "glob": "^7.1.5",
     "gm": "^1.23.1",
+    "googleapis": "^44.0.0",
     "howlongtobeat": "^1.1.1",
     "html-entities": "^1.2.1",
+    "http": "0.0.0",
     "image-size": "^0.7.4",
     "jsdom": "^15.1.1",
+    "open": "^7.0.0",
     "opn": "^6.0.0",
     "plex-api": "^5.2.2",
     "pngjs": "^3.4.0",
     "readline-sync": "^1.4.9",
     "request": "^2.88.0",
+    "server-destroy": "^1.0.1",
     "sharp": "^0.23.0",
     "striptags": "^3.1.1",
     "twitter-lite": "^0.9.4",
+    "url": "^0.11.0",
     "xml-parser": "^1.2.1"
   }
 }
