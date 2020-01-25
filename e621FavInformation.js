@@ -5,7 +5,7 @@ const gm = require("gm").subClass({ imageMagick: true });
 const imageFolder = "/run/media/earlopain/plex/plexmedia/e621/explicit";
 const extraInfoFolder = "./e621extra"
 const username = "earlopain";
-const invalidateLocalUserFavs = false;
+const invalidateLocalUserFavs = true;
 const autoDownloadNotDownloaded = false;
 
 const ignoreNotDownloaded = [];
@@ -60,7 +60,13 @@ e4644ac236563396f6f77c6ccc2b5d81:f4af8b36195d516d6fe2ac25a449d8ef
 e4644ac236563396f6f77c6ccc2b5d81:f8b0714fdc6fd907f1afcbdaa652bf01
 efdf8c5f66813496a25665c17fa86e39:bcbca25a8c4ad7383eb04f8845f78da2
 f9219a4bdd7257f96ca9265b5f59b84a:784301565c4d4da75d8071fc9a09e25c
-fff26919495acd94e68be4e449707ab3:14c4dc54417fdd360e11891e358f95ea`;
+fff26919495acd94e68be4e449707ab3:14c4dc54417fdd360e11891e358f95ea
+0e9a1937fb123352813c28859e04cf64:510e263ade62f24895b56bc285f0fb94
+0f0b0d4923b1d68a13b5a7f5cb38a6f8:c9a727d828e5fbb37f28449f79746681
+5fba500da211272fe0ac33be2e9d28da:3c89b0365a9038275cd1b31a2b74f190
+bb497ae801804bf20fe739258c479a6a:d74b204930af4936a169a3e53919b18d
+
+`;
 
 let timeTracker = {};
 
