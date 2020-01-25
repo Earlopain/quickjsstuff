@@ -28,7 +28,7 @@ let script = `
 
 `;
 let filename = steamid + (getRemaining ? "Remaining" : "Achieved")
-let stream = fs.createWriteStream(__dirname + "/"+ filename + ".html", { flags: 'a' });
+let stream = fs.createWriteStream(__dirname + "/" + filename + ".html", { flags: 'a' });
 let ending = "</script></body></html>";
 
 async function main() {

@@ -67,7 +67,7 @@ class PlexApi {
             console.log(error);
             return;
         }
-        if(allStreams === undefined) {
+        if (allStreams === undefined) {
             return;
         }
         for (const stream of allStreams) {

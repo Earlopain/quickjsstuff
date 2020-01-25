@@ -28,7 +28,7 @@ files.forEach(element => {
     if (alreadyExisting.indexOf(id) === -1) {
         newSongs.push(id);
     }
-    else{
+    else {
         console.log("Deleting " + element);
         //deleteFolderRecursive(folder + "/" + element);
     }

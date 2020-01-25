@@ -60,7 +60,7 @@ while (!validFolder) {
 }
 if (!rootFolder.endsWith("/"))
     rootFolder = rootFolder + "/";
-    
+
 try {
     let osuExePath = "";
     const splitted = rootFolder.split("/");
@@ -239,7 +239,7 @@ try {
 function nextStep() {
     process.stdout.write("\nDeleting empty folders...\n");
     if (!dryRun) {
-        const orphaned = deleteEmpty.sync(rootFolder, {verbose: false});
+        const orphaned = deleteEmpty.sync(rootFolder, { verbose: false });
         let temp = "";
         for (let i = 0; i < orphaned.length; i++) {
             temp += "\r\nRemoved empty dir " + orphaned[i];

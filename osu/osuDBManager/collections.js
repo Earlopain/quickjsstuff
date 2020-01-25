@@ -38,10 +38,10 @@ class Collections {
         let w = new Writer(path);
         w.writeInt(this.version);
         w.writeInt(this.counter);
-        for(let i = 0; i < this.collections.length; i++)  {
+        for (let i = 0; i < this.collections.length; i++) {
             w.writeString(this.collections[i].name);
             w.writeInt(this.collections[i].md5s.length);
-            for(let j = 0; j < this.collections[i].md5s.length; j++){
+            for (let j = 0; j < this.collections[i].md5s.length; j++) {
                 w.writeString(this.collections[i].md5s[j]);
             }
         }
@@ -49,7 +49,7 @@ class Collections {
     }
 
     merge(otherCollections) {
-        for(let i = 0; i < otherCollections.collections.length; i++){
+        for (let i = 0; i < otherCollections.collections.length; i++) {
             if (this.getString(otherCollections.collections[i].name) !== undefined) {
                 const index = this.getIndexOf(otherCollections.collections[i].name);
                 let joined = this.collections[index].md5s.concat(otherCollections.collections[i].md5s);

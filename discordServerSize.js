@@ -23,7 +23,7 @@ async function main() {
         for (let i = 0; i < servers.length; i++) {
             const dateString = getTime();
             const serverSize = await getServerSize(servers[i]);
-            fs.appendFileSync(outputFolder + "/" + servers[i] + ".csv", dateString + "," + serverSize+ ",\n");
+            fs.appendFileSync(outputFolder + "/" + servers[i] + ".csv", dateString + "," + serverSize + ",\n");
         }
         const runtime = new Date().getMilliseconds() - timeStart;
         await sleep(checkInterval * 1000 - runtime);

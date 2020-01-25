@@ -67,7 +67,7 @@ setInterval(function () {
     if (doit) {
         console.log(newIds.length);
         opn(downloadLink + newIds.pop());
-        if (newIds.length === 0){
+        if (newIds.length === 0) {
             console.log("Finished");
             process.exit(0);
         }

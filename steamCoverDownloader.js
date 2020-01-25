@@ -20,7 +20,7 @@ const preserveCustomCoverArt = true;
 //let steamFolder = "D:/Steam";
 let steamFolder;
 
-if(steamUserID64.length !== 17){
+if (steamUserID64.length !== 17) {
     throw new Error("Not a valid steamid. You need your steamid64. Try steamid.io");
 }
 
@@ -40,7 +40,7 @@ if (steamFolder === undefined) {
             break;
         case "linux":
             steamFolder = os.homedir() + "/.steam";
-            if(fs.existsSync(steamFolder + "/steam")){
+            if (fs.existsSync(steamFolder + "/steam")) {
                 steamFolder = steamFolder + "/steam";
             }
             break;
@@ -263,7 +263,7 @@ function requestCallback(error, response, body) {
         console.log(body);
         console.log("Request url:");
         console.log(response.request.href);
-        if (response.request.body !== undefined){
+        if (response.request.body !== undefined) {
             console.log("Request body:");
             console.log(response.request.body);
         }

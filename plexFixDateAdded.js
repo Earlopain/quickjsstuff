@@ -81,7 +81,7 @@ function removeItemClusers() {
     preparedStatement.run();
 }
 
-function generateNewClusters(){
+function generateNewClusters() {
     for (const sectionID of Object.keys(clusterings)) {
         for (const clusterDate of Object.keys(clusterings[sectionID])) {
             const clusterCount = clusterings[sectionID][clusterDate].length;
@@ -98,7 +98,7 @@ function generateNewClusters(){
     }
 }
 
-function addItemsToCluster(){
+function addItemsToCluster() {
     //Simply delete an entry if it already exists.
     //We will add it after anyways
     let preparedStatementDelete = db.prepare("DELETE FROM metadata_item_clusterings WHERE metadata_item_id = ?");

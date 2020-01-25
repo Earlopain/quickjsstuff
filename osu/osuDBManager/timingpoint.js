@@ -1,15 +1,15 @@
 class TimingPoint {
     constructor(bpm, offset, inherited, prev) {
-        if (inherited){
+        if (inherited) {
             this.bpm = Math.round(prev.bpmRelative * (100 / -bpm));
             this.bpmRelative = prev.bpmRelative;
         }
-            
-        else{
+
+        else {
             this.bpm = Math.round(60000 / bpm);
             this.bpmRelative = this.bpm;
         }
-            
+
         this.offset = offset;
         this.inherited = inherited;
     }

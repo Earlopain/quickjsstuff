@@ -8,7 +8,7 @@ const poolMapperFile = __dirname + "/poolmapper.json";
 const pools = fs.existsSync(poolFile) ? [...new Set(JSON.parse(fs.readFileSync(poolFile)))] : [];
 const poolMapper = fs.existsSync(poolMapperFile) ? JSON.parse(fs.readFileSync(poolMapperFile)) : {};
 const downloadFolder = "/media/plex/plexmedia/Pictures/e621comics/";
-if (!fs.existsSync(downloadFolder)){
+if (!fs.existsSync(downloadFolder)) {
     fs.mkdirSync(downloadFolder);
 }
 
@@ -22,7 +22,7 @@ class Pool {
         let json = await getJSON("https://e621.net/pool/show.json?page=" + page + "&id=" + this.id);
         let previousJSON;
         let previousRemaining;
-        if(poolMapper[this.id] === undefined){
+        if (poolMapper[this.id] === undefined) {
             poolMapper[this.id] = json.name.replace(/_/g, " ").replace(/\//g, "\\");
             fs.writeFileSync(poolMapperFile, JSON.stringify(poolMapper, null, 4), "utf8");
         }

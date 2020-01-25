@@ -21,7 +21,7 @@ async function main() {
         while (true) {
             const json = await getPostJSON(newID);
             newID = getNewerVersionID(json);
-            if(encounteredIds.includes(newID)){
+            if (encounteredIds.includes(newID)) {
                 console.log("CIRCUAL REFERENCE");
                 console.log(encounteredIds);
                 break;
@@ -52,7 +52,7 @@ function getPostJSON(post) {
                 resolve(JSON.parse(body));
             }
             catch (e) {
-                await new Promise(resolve => {setTimeout(() => {resolve()}, 5000)});
+                await new Promise(resolve => { setTimeout(() => { resolve() }, 5000) });
                 resolve(await getPostJSON(post));
             }
         })

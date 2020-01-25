@@ -204,7 +204,7 @@ async function getJSONFromFavorites(username) {
         const jsonImage = keyPairJSON[favID];
         if (localImagesMd5Only.includes(jsonImage.md5))
             continue;
-            //check if better version is on disk
+        //check if better version is on disk
         let betterOnDisk = false;
         let betterID;
         for (const post of Object.keys(keyPairJSON).map(key => { return keyPairJSON[key] })) {
@@ -288,7 +288,7 @@ async function getJSONFromFavorites(username) {
                     notDownloaded.push(keyPairJSON[notDownloadedMD5]);
             }
             else
-            notDownloaded.push(keyPairJSON[notDownloadedMD5]);
+                notDownloaded.push(keyPairJSON[notDownloadedMD5]);
         }
     }
     timeStop("notDownloaded loop");

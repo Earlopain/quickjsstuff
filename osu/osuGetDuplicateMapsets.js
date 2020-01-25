@@ -17,27 +17,27 @@ files.forEach(element => {
     }
     else if (!isNaN(parseInt(id))) {
         const prev = paths[ids.indexOf(id)];
-		try{
-			const toDelete = fs.statSync(folder + "/" + prev).birthtimeMs > fs.statSync(folder + "/" + element).birthtimeMs ? element :  prev;
-			if (del) {
-            try {
-                deleteFolderRecursive(folder + "/" + toDelete);
+        try {
+            const toDelete = fs.statSync(folder + "/" + prev).birthtimeMs > fs.statSync(folder + "/" + element).birthtimeMs ? element : prev;
+            if (del) {
+                try {
+                    deleteFolderRecursive(folder + "/" + toDelete);
+                }
+                catch (e) {
+                    console.log(e);
+                    errors.push(toDelete);
+                }
             }
-            catch (e) {
-				console.log(e);
-                errors.push(toDelete);
-            }
-        }
 
-        console.log(element + "\n" + prev);
-		}
-		catch(e){
-			
-		}
+            console.log(element + "\n" + prev);
+        }
+        catch (e) {
+
+        }
     }
 });
-if(errors.length !== 0)
-console.log("You need to delete these folders manualy: ");
+if (errors.length !== 0)
+    console.log("You need to delete these folders manualy: ");
 errors.forEach(element => {
     console.log(element);
 });

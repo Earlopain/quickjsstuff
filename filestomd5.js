@@ -21,7 +21,7 @@ function next(number) {
 
     fd.on('end', function () {
         hash.end();
-        fs.renameSync(files[number], path.dirname(files[number]) + "/"+ hash.read() + "." + files[number].split(".")[files[number].split(".").length - 1]);
+        fs.renameSync(files[number], path.dirname(files[number]) + "/" + hash.read() + "." + files[number].split(".")[files[number].split(".").length - 1]);
         next(number + 1);
     });
 

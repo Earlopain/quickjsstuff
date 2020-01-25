@@ -27,7 +27,7 @@ async function main() {
                     continue;
                 const metadata = await getMP3Metadata(mp3);   //https://stackoverflow.com/a/7592235
 
-                if (!metadata.artist || !metadata.title){
+                if (!metadata.artist || !metadata.title) {
                     console.log("Missing metadata: " + path.dirname(mp3).split(musicDir)[1].substr(1) + "/" + path.basename(mp3));
                     continue;
                 }

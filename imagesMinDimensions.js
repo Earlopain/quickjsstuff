@@ -14,17 +14,17 @@ let previousConsoleWrite;
 let backgroundsRightSize = [];
 let totalWidth = 0;
 let totalHeight = 0;
-    allImages.forEach((path, index) => {
+allImages.forEach((path, index) => {
     writeThis = (Math.floor(index / allImages.length * 10) * 10 + 10) + "%";
     if (writeThis !== previousConsoleWrite) {
         console.log(writeThis);
         previousConsoleWrite = writeThis;
     }
-            try {
-    const dimensions = imageSize(path);
-            if (dimensions.width >= minWidth && dimensions.height >= minHeight) {
-        backgroundsRightSize.push(path);
-        totalWidth += dimensions.width;
+    try {
+        const dimensions = imageSize(path);
+        if (dimensions.width >= minWidth && dimensions.height >= minHeight) {
+            backgroundsRightSize.push(path);
+            totalWidth += dimensions.width;
             totalHeight += dimensions.height;
         }
         else

@@ -25,7 +25,7 @@ for (let i = 0; i < file.length; i++) {
         for (let i = 8; i < temp.length; i++) {
             password = password + temp[i] + ",";
         }
-        password = password.slice(0,-1);
+        password = password.slice(0, -1);
         results.push(temp[6] + "," + temp[7] + "," + password + "," + temp[4] + "," + temp[3] + "," + (first ? temp[0] : temp[0].slice(2)) + "," + (temp[1] === "" ? "0" : "1") + "\n");
         first = false;
         temp = "";
@@ -42,8 +42,8 @@ results.forEach(function (element) {
 
 path = path.split("/");
 let newpath = "";
-path.forEach(function(element, index) {
-    if(index !== path.length-1){
+path.forEach(function (element, index) {
+    if (index !== path.length - 1) {
         newpath = newpath + element + "/";
     }
 });
