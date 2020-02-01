@@ -132,8 +132,8 @@ const tagGroups = {
         if (filestat[md5] === undefined) {
             continue;
         }
-        currentStraigt += postMatches[md5].cum;
-        currentGay += postMatches[md5].nocum;
+        currentStraigt += postMatches[md5].straight;
+        currentGay += postMatches[md5].gay;
         csv += "\n" + new Date(filestat[md5]).toISOString().split("T")[0] + ";" + currentStraigt + ";" + currentGay;
     }
     console.log(csv);
