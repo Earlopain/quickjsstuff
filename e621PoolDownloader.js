@@ -7,7 +7,7 @@ const poolMapperFile = __dirname + "/poolmapper.json";
 
 const pools = fs.existsSync(poolFile) ? [...new Set(JSON.parse(fs.readFileSync(poolFile)))] : [];
 const poolMapper = fs.existsSync(poolMapperFile) ? JSON.parse(fs.readFileSync(poolMapperFile)) : {};
-const downloadFolder = "/media/plex/plexmedia/Pictures/e621comics/";
+const downloadFolder = "/media/plex/plexmedia/e621/pools/";
 if (!fs.existsSync(downloadFolder)) {
     fs.mkdirSync(downloadFolder);
 }
@@ -90,10 +90,15 @@ async function getJSON(url, line) {
 async function getURL(url, formating, line) {
     return new Promise(function (resolve, reject) {
         request.get({ url: url, headers: { "User-Agent": 'earlopain/pooldownloader' }, encoding: formating }, async (error, response, body) => {
-            if (error)
-                debugger;
-            if (response.statusCode !== 200 && response.statusCode !== 404)
-                debugger;
+            if (error) {
+                console.log(error);
+                process.exit();
+            }
+            if (response.statusCode !== 200 && response.statusCode !== 404) {
+                console.log(response.statusCode);
+                console.log(body);
+                process.exit();
+            }
             resolve(body);
         });
     });
@@ -118,7 +123,7 @@ function fileHash(filepath) {
     });
 }
 
-
+let tempFolderRemaining = [];
 async function main() {
     const totalPools = pools.length;
     let totalDownloaded = 0;
@@ -132,6 +137,10 @@ async function main() {
         }
         if (!fs.existsSync(downloadFolder + pool.name))
             fs.mkdirSync(downloadFolder + pool.name);
+        if (fs.existsSync(downloadFolder + pool.name + "/tmp")) {
+            tempFolderRemaining.push(downloadFolder + "removed/" + pool.name + "TMP");
+            fs.renameSync(downloadFolder + pool.name + "/tmp", downloadFolder + "removed/" + pool.name + "TMP");
+        }
         const filePaths = fs.readdirSync(downloadFolder + pool.name).map(element => downloadFolder + pool.name + "/" + element);
         let localFiles = [];
         for (const localFilePath of filePaths) {
@@ -194,7 +203,6 @@ async function main() {
             fs.mkdirSync(downloadFolder + "removed/" + pool.name);
         }
         for (const file of removedFiles) {
-            //fs.unlinkSync(file)
             const hash = await fileHash(file);
             fs.renameSync(file, downloadFolder + "removed/" + pool.name + "/" + hash + "." + file.split(".").pop());
 
@@ -209,9 +217,15 @@ async function main() {
             continue;
         }
     }
+
+
     console.log("%s total pools", totalPools);
     console.log("%s images downloaded", totalDownloaded);
     console.log("%s images removed", totalRemoved);
+    if (tempFolderRemaining.length > 0) {
+        console.log("Previous run was interupted. These folders were not cleaned up");
+        console.log(tempFolderRemaining.join("\n"));
+    }
 }
 
 main();
