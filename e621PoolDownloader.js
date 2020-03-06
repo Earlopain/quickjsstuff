@@ -18,51 +18,28 @@ class Pool {
     }
 
     async init() {
-        let page = 1;
-        let json = await getJSON("https://e621.net/pool/show.json?page=" + page + "&id=" + this.id);
-        let previousJSON;
-        let previousRemaining;
+        const poolJson = await getJSON("https://e621.net/pools/" + this.id + ".json");
         if (poolMapper[this.id] === undefined) {
-            poolMapper[this.id] = json.name.replace(/_/g, " ").replace(/\//g, "\\");
+            poolMapper[this.id] = poolJson.name.replace(/_/g, " ").replace(/\//g, "\\");
             fs.writeFileSync(poolMapperFile, JSON.stringify(poolMapper, null, 4), "utf8");
         }
         this.name = poolMapper[this.id];
         this.size = json.post_count;
-        let remaingPosts = this.size;
         this.images = [];
         this.isActive = json.is_active;
-        let updatedAt = json.updated_at.s;
-        if (json.posts.length === 0)
+        if (this.size === 0)
             return;
-        while (true) {
-            if (json.updated_at.s !== updatedAt) {
-                console.log("Pool updated while, parsing. Retrying");
-                this.init();
-                return;
-            }
-            if (page !== 1 && json.posts.length > 0 && previousJSON.posts.length !== 24) {
-                console.log("%s deleted posts on page %s", 24 - json.posts.length, page - 1);
-                this.size -= 24 - previousJSON.posts.length;
-                remaingPosts -= 24 - previousJSON.posts.length;
-            }
-            if (page !== 1 && json.posts.length === 0 && previousJSON.posts.length !== previousRemaining) {
-                console.log("%s deleted posts on page %s", previousRemaining - previousJSON.posts.length, page - 1);
-                this.size -= previousRemaining - previousJSON.posts.length;
-                remaingPosts -= previousRemaining - previousJSON.posts.length;
-            }
+        const blueprint = poolJson.post_ids.reverse();
+        let page = 1;
+        do {
+            const json = await getJSON("https://e621.net/posts.json?tags=pool:" + this.id + "&limit=320&page=" + page);
             for (const post of json.posts) {
-                this.images.push(post.file_url);
-            }
-            previousRemaining = remaingPosts;
-            remaingPosts -= json.posts.length;
-            if (remaingPosts === 0) {
-                console.log("Pool %s(%s) has %s posts", this.id, this.name, this.size)
-                return;
+                this.images[blueprint.indexOf(post.id)] = `https://static1.e621.net/data/${post.file.md5.substring(0, 2)}/${post.file.md5.substring(2, 4)}/${post.file.md5}.${post.file.ext}`;
             }
             page++;
-            previousJSON = json;
-            json = await getJSON("https://e621.net/pool/show.json?page=" + page + "&id=" + this.id);
-        }
+        } while (json.posts.length === 320);
+        console.log("Pool %s(%s) has %s posts", this.id, this.name, this.size)
+
     }
 }
 
@@ -135,8 +112,9 @@ async function main() {
             console.log("Pool %s(%s) is deleted", pool.id, pool.name)
             continue;
         }
-        if (!fs.existsSync(downloadFolder + pool.name))
+        if (!fs.existsSync(downloadFolder + pool.name)) {
             fs.mkdirSync(downloadFolder + pool.name);
+        }
         if (fs.existsSync(downloadFolder + pool.name + "/tmp")) {
             tempFolderRemaining.push(downloadFolder + "removed/" + pool.name + "TMP");
             fs.renameSync(downloadFolder + pool.name + "/tmp", downloadFolder + "removed/" + pool.name + "TMP");
@@ -217,8 +195,6 @@ async function main() {
             continue;
         }
     }
-
-
     console.log("%s total pools", totalPools);
     console.log("%s images downloaded", totalDownloaded);
     console.log("%s images removed", totalRemoved);
