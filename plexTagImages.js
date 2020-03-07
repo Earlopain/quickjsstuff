@@ -5,15 +5,13 @@ const server = "http://192.168.178.97:32400";
 const plexToken = "fpJx4zeYwyou3KWv4BNX";
 const sectionName = "e621explicit";
 
-const onlineTagCutoff = 30;     //If the tag has less than this many entries, don't send it to the server
 const localTagCutoff = 5;       //How often does it have to appear locally
 const tagWhitelist = [];        //Those will not be filtered regardless of the above,
 const tagOverwrites = { "cuntboy": "andromorph", "dickgirl": "gynomorph" };
 //works like on e6, probably
 if (!fs.existsSync(__dirname + "/e621posts"))
     fs.mkdirSync(__dirname + "/e621posts")
-if (!fs.existsSync(__dirname + "/e621tags"))
-    fs.mkdirSync(__dirname + "/e621tags")
+
 async function main() {
     let plexServer = new PlexServer(server, plexToken);
     const sectionID = await plexServer.sectionNameToKey(sectionName);
@@ -28,28 +26,29 @@ async function main() {
             newFiles.push(file);
     }
     console.log((currentFiles.length - previousFileKeys.length) + " new Files found, tagging...");
-    const tagFilter = await getTagFilter(currentFiles);
+    const allowedTags = await getTagFilter(currentFiles);
     for (const file of newFiles) {
         if (file.title.length !== 32) {
             console.log("Key: " + file.key + "  Title: " + file.title + " File: " + 2);
             continue;
         }
-        const e621json = await getE621Json(file.title);
-        if (e621json.id === undefined) {
+        const postJson = await getE621Json(file.title);
+        if (postJson.id === undefined) {
             continue;
         }
-        let tags = e621json.tags.split(" ").filter(tag => tagFilter.indexOf(tag) === -1);
+        let tags = prepareTagArray([].concat.apply([], Object.values(postJson.tags)));
         tags = prepareTagArray(tags);
+        tags = tags.filter(tag => allowedTags.indexOf(tag) === 1);
         const originalFileTags = await file.getAllTags();
         if (originalFileTags.length !== 0)
             continue;
         await file.addTags(tags);
+        return;
     }
     fs.writeFileSync(__dirname + "/previousFiles.json", JSON.stringify(previousFileKeys.concat(newFiles.map(e => e.key))), "utf8");
 }
 
-let localTagCount = {};
-let onlineTagCount = {};
+let tagCounter = {};
 let tagOverwriteKeys = Object.keys(tagOverwrites)
 async function getTagFilter(files) {
     let filter = [];
@@ -59,60 +58,35 @@ async function getTagFilter(files) {
         if (postJson.id === undefined) {
             continue;
         }
-        const tags = prepareTagArray(postJson.tags.split(" "));
-        for (let onlineTagName of tags) {
-            if (artistTagArray.includes(onlineTagName)) {
+        const tags = prepareTagArray([].concat.apply([], Object.values(postJson.tags)));
+        for (let tagName of tags) {
+            if (artistTagArray.includes(tagName)) {
                 continue;
             }
-            let offlineTagName = onlineTagName;
             for (const key of tagOverwriteKeys) {
-                offlineTagName = offlineTagName.replace(new RegExp(tagOverwrites[key], "g"), key);
+                tagName = tagName.replace(new RegExp(tagOverwrites[key], "g"), key);
             }
             let isWhitelisted = false;
             for (const whitelisted of tagWhitelist) {
-                if (new RegExp("^" + whitelisted.split("*").join(".*") + "$").test(offlineTagName))
+                if (new RegExp("^" + whitelisted.split("*").join(".*") + "$").test(tagName)) {
                     isWhitelisted = true;
+                    break;
+                }
             }
             if (isWhitelisted) {
                 continue;
             }
-            let tagIsArtist = false;
-            if (onlineTagCount[offlineTagName] === undefined) {
-                let json = getTagFromFile(offlineTagName);
-                if (json === undefined) {
-                    const url = "https://e621.net/tag/index.json?show_empty_tags=1&name=" + onlineTagName;
-                    json = await getJSON(url);
-                    saveTagToFile(offlineTagName, json);
-                }
-                if (!json[0] || json[1] || !(escapeTag(json[0].name) === offlineTagName || escapeTag(json[0].name) === onlineTagName)) {
-                    console.log("Unexpected output for " + onlineTagName);
-                    continue;
-                }
-                if (json[0].type === 1) {
-                    tagIsArtist = true;
-                    artistTagArray.push(json[0].name)
-                }
-                if (!tagIsArtist) {
-                    onlineTagCount[onlineTagName] = json[0].count;
-                }
-            }
-            if (!tagIsArtist) {
-                localTagCount[offlineTagName] = localTagCount[offlineTagName] === undefined ? 1 : localTagCount[offlineTagName] + 1;
+            if (!postJson.tags.artist.includes(tagName)) {
+                tagCounter[tagName] = tagCounter[tagName] === undefined ? 1 : tagCounter[tagName] + 1;
             }
         }
     }
-    for (const key of Object.keys(localTagCount)) {
-        const a = localTagCount[key];
-        if (localTagCount[key] < localTagCutoff) {
+    for (const key of Object.keys(tagCounter)) {
+        if (tagCounter[key] >= localTagCutoff) {
             filter.push(key);
         }
     }
-    for (const key of Object.keys(onlineTagCount)) {      //ignore tags with 0 count, probably dnp
-        if (onlineTagCount[key] < onlineTagCutoff && onlineTagCount[key] !== 0 && filter.indexOf(key) === -1) {
-            filter.push(key);
-        }
-    }
-    console.log("Total: " + Object.keys(localTagCount).length + " Left: " + (Object.keys(localTagCount).length + tagWhitelist.length - filter.length));
+    console.log("Total tags: " + Object.keys(tagCounter).length + " Left: " + filter.length);
     return filter;
 }
 
@@ -120,36 +94,20 @@ async function getE621Json(md5) {
     if (fs.existsSync(__dirname + "/e621posts/" + md5 + ".json"))
         return JSON.parse(fs.readFileSync(__dirname + "/e621posts/" + md5 + ".json"));
 
-    const json = await getJSON("https://e621.net/post/show.json?md5=" + md5);
+    const result = await getJSON("https://e621.net/posts.json?tags=status:any%20md5:" + md5);
+    const json = result.posts.length === 0 ? [] : result.posts[0];
     fs.writeFileSync(__dirname + "/e621posts/" + md5 + ".json", JSON.stringify(json, null, 4));
     return json;
 }
 
 function prepareTagArray(array) {
-    array = array.map(tag => escapeTag(tag))
-    array = array.filter(tag => /^[\x00-\x25\x27-\x3a\x3c-\x7F]*$/.test(tag)).map(tag => {
+    array = array.map(tag => {
         for (const key of tagOverwriteKeys) {
             tag = tag.replace(new RegExp(tagOverwrites[key], "g"), key);
         }
         return tag;
     });//allow only ascii minus & ; => no problems with wierd url chars, also overwrite tag if spefified
     return array;
-}
-
-function escapeTag(tag) {
-    return tag.normalize('NFD').replace(/[\u0300-\u036f]/g, "")
-}
-
-function getTagFromFile(tag) {
-    tag = tag.replace(/\//g, "*");
-    if (!fs.existsSync(__dirname + "/e621tags/" + tag + ".json"))
-        return undefined;
-    return JSON.parse(fs.readFileSync(__dirname + "/e621tags/" + tag + ".json"));
-}
-
-function saveTagToFile(tag, json) {
-    tag = tag.replace(/\//g, "*");
-    fs.writeFileSync(__dirname + "/e621tags/" + tag + ".json", JSON.stringify(json, null, 4));
 }
 
 function getJSON(url, itteration) {
@@ -160,7 +118,7 @@ function getJSON(url, itteration) {
     }
     return new Promise(resolve => {
         request.get({
-            uri: encodeURI(url), headers: {     //enocdeURI takes care of chars like é which
+            uri: url, headers: {
                 "Accept": "application/json",   //would otherwise result in malfored requests
                 "User-Agent": "tagger"
             }
@@ -204,7 +162,7 @@ class PlexGenericFile {
     async addTags(tagarray) {
         let tagString = "";
         tagarray.forEach((tag, index) => {
-            tagString += "tag[" + index + "].tag.tag=" + tag.replace(/_/g, " ") + "&";
+            tagString += "tag[" + index + "].tag.tag=" + encodeURIComponent(tag.replace(/_/g, " ")) + "&";
         });
         tagString = tagString.slice(0, -1);
         await this.server.request("/library/sections/" + this.sectionID + "/all?type=13&id=" + this.key + "&" + tagString, "PUT");
@@ -214,7 +172,7 @@ class PlexGenericFile {
         await removeAllTags();
         let tagString = "";
         tagarray.forEach((tag, index) => {
-            tagString += "tag[" + index + "].tag.tag=" + tag.replace(/_/g, " ") + "&";
+            tagString += "tag[" + index + "].tag.tag=" + encodeURIComponent(tag.replace(/_/g, " ")) + "&";
         });
         tagString = tagString.slice(0, -1);
         await this.server.request("/library/sections/" + this.sectionID + "/all?type=13&id=" + this.key + "&" + tagString, "PUT");
@@ -222,8 +180,8 @@ class PlexGenericFile {
 
     async removeTags(tagarray) {
         let tagString = "tag[].tag.tag-=";
-        tagarray.forEach((tag, index) => {
-            tagString += tag.replace(/_/g, " ") + ",";
+        tagarray.forEach((tag) => {
+            tagString += encodeURIComponent(tag.replace(/_/g, " ")) + ",";
         });
         await this.server.request("/library/sections/" + this.sectionID + "/all?type=12,13&id=" + this.key + "&" + tagString, "PUT");
     }
@@ -371,7 +329,7 @@ class PlexServer {
             url = this.server + url + "&X-Plex-Token=" + this.token;
         return new Promise(resolve => {
             request({
-                method: method, uri: encodeURI(url), headers: {     //enocdeURI takes care of chars like é which
+                method: method, uri: url, headers: {
                     "Accept": "application/json"                   //would otherwise result in malfored requests
                 }
             }, (error, response, body) => {
