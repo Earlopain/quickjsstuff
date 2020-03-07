@@ -4,7 +4,9 @@ const request = require("request");
 mkdir(__dirname + "/e621userfavs");
 mkdir(__dirname + "/e621posts");
 
-function tagsMatchesFilter(tagString, filterString) {
+function tagsMatchesFilter(tagArrays, filterString) {
+    const tags = [].concat.apply([], tagArrays);
+    const tagString = tags.join(" ");
     const seperatedFilters = filterString.split(" ");
     const allTags = tagString.split(" ");
     let result = true;
@@ -51,7 +53,7 @@ async function getAllUserFavs(username) {
         return JSON.parse(fs.readFileSync(userfavPath));
     }
     let page = 1;
-    const url = "https://e621.net/post/index.json?tags=fav:" + username + "&limit=320&page=";
+    const url = "https://e621.net/posts.json?tags=fav:" + username + "&limit=320&page=";
     let jsonArray;
     let favMd5 = [];
     do {
@@ -60,7 +62,7 @@ async function getAllUserFavs(username) {
             break;
         }
         jsonArray = await getJSON(url + page);
-        for (const json of jsonArray) {
+        for (const json of jsonArray.posts) {
             favMd5.push(json.md5);
             savePost(json);
         }
@@ -72,7 +74,7 @@ async function getAllUserFavs(username) {
 }
 
 function savePost(json) {
-    const filepath = __dirname + "/e621posts/" + json.md5 + ".json";
+    const filepath = __dirname + "/e621posts/" + json.file.md5 + ".json";
     if (fs.existsSync(filepath)) {
         return;
     }
