@@ -24,22 +24,22 @@ class Pool {
             fs.writeFileSync(poolMapperFile, JSON.stringify(poolMapper, null, 4), "utf8");
         }
         this.name = poolMapper[this.id];
-        this.size = json.post_count;
+        this.size = poolJson.post_count;
         this.images = [];
-        this.isActive = json.is_active;
+        this.isActive = poolJson.is_active;
         if (this.size === 0)
             return;
-        const blueprint = poolJson.post_ids.reverse();
+        const blueprint = poolJson.post_ids;
         let page = 1;
+        let json;
         do {
-            const json = await getJSON("https://e621.net/posts.json?tags=pool:" + this.id + "&limit=320&page=" + page);
+            json = await getJSON("https://e621.net/posts.json?tags=pool:" + this.id + "&limit=320&page=" + page);
             for (const post of json.posts) {
                 this.images[blueprint.indexOf(post.id)] = `https://static1.e621.net/data/${post.file.md5.substring(0, 2)}/${post.file.md5.substring(2, 4)}/${post.file.md5}.${post.file.ext}`;
             }
             page++;
         } while (json.posts.length === 320);
         console.log("Pool %s(%s) has %s posts", this.id, this.name, this.size)
-
     }
 }
 
@@ -136,7 +136,7 @@ async function main() {
             const md5 = imageURL.substr(36, 32);
             let alreadyFound = false
             for (let j = 0; j < localFiles.length; j++) {
-                if (localFiles[j].md5 === md5) {
+                if (localFiles[j].md5 === md5 && i + 1 == localFiles[j].filename.split(".")[0]) {
                     alreadyFound = true;
                     break;
                 }
@@ -177,13 +177,13 @@ async function main() {
         //remove tmp dir
         const removedFiles = fs.readdirSync(downloadFolder + pool.name + "/tmp").map(element => downloadFolder + pool.name + "/tmp/" + element)
         if (removedFiles.length !== 0) { //create folder to store files
-            if (!fs.existsSync(downloadFolder + "removed/" + pool.name));
-            fs.mkdirSync(downloadFolder + "removed/" + pool.name);
+            if (!fs.existsSync(downloadFolder + "removed/" + pool.name)) {
+                fs.mkdirSync(downloadFolder + "removed/" + pool.name);
+            }
         }
         for (const file of removedFiles) {
             const hash = await fileHash(file);
             fs.renameSync(file, downloadFolder + "removed/" + pool.name + "/" + hash + "." + file.split(".").pop());
-
         }
         totalRemoved += removedFiles.length;
         console.log("%s local files removed", removedFiles.length);
