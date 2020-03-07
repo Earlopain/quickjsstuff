@@ -5,7 +5,7 @@ mkdir(__dirname + "/e621userfavs");
 mkdir(__dirname + "/e621posts");
 
 function tagsMatchesFilter(tagArrays, filterString) {
-    const tags = [].concat.apply([], tagArrays);
+    const tags = [].concat.apply([], Object.values(tagArrays));
     const tagString = tags.join(" ");
     const seperatedFilters = filterString.split(" ");
     const allTags = tagString.split(" ");
