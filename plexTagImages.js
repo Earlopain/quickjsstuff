@@ -126,17 +126,6 @@ class PlexGenericFile {
         valueCheck(this);
     }
 
-    async getThumbnail(x, y) {
-        let undefCount = 0;
-        undefCount += x === undefined;
-        undefCount += y === undefined;
-        if (undefCount === 1)
-            throw new Error("Either specify none or both values");
-        if (undefCount === 2)
-            return await this.server.request(this.thumbpath, "GET");
-        return await this.server.request("/photo/: /transcode?width=" + x + "&height=" + y + "&minSize=1&url=" + this.thumbpath, "GET");
-    }
-
     async addTags(tagarray) {
         let tagString = "";
         tagarray.forEach((tag, index) => {
@@ -180,47 +169,20 @@ class PlexGenericFile {
     }
 }
 
-class PlexFileContent extends PlexGenericFile {
-    constructor(data, sectionID, server) {
-        super(data, sectionID, server);
-        this.filepath = data.Media[0].Part[0].key;
-        this.filesize = data.Media[0].Part[0].size;
-    }
-}
-
-class PlexPicture extends PlexFileContent {
-    constructor(data, sectionID, server) {
-        super(data, sectionID, server);
-        this.height = data.Media[0].height;
-        this.width = data.Media[0].width;
-        valueCheck(this);
-    }
-}
-
 class PlexSection {
     constructor(json, server) {
         if (!server)
             throw new Error("Forgot to put server");
-        return new Promise(async resolve => {
-            this.title = json.MediaContainer.librarySectionTitle;
-            this.id = json.MediaContainer.librarySectionID;
-            this.size = json.MediaContainer.size;
-            this.type = json.MediaContainer.viewGroup;
-            this.files = [];
-            this.server = server;
-            switch (this.type) {
-                case "photo":
-                    for (const file of json.MediaContainer.Metadata) {
-                        this.files.push(new PlexPicture(file, this.id, server));
-                    }
-                    break;
-                default:
-                    break;
-            }
-            valueCheck(this);
-            resolve(this);
-        })
-
+        this.title = json.MediaContainer.librarySectionTitle;
+        this.id = json.MediaContainer.librarySectionID;
+        this.size = json.MediaContainer.size;
+        this.type = json.MediaContainer.viewGroup;
+        this.files = [];
+        this.server = server;
+        for (const file of json.MediaContainer.Metadata) {
+            this.files.push(new PlexGenericFile(file, this.id, server));
+        }
+        valueCheck(this);
     }
 }
 
