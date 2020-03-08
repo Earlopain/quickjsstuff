@@ -2,11 +2,9 @@ const request = require('request');
 const fs = require('fs');
 
 const secrets = JSON.parse(fs.readFileSync("./secrets.json"));
-
-const jsonURL = "https://e621.net/post/show.json?";
-const saveTo = "/media/plex/plexmedia/Pictures/e621";
-const saveToAnimation = "/media/plex/plexmedia/Pictures/e621animation";
-const saveToSafe = "/media/plex/plexmedia/Pictures/e621safe";
+const saveTo = "/media/plex/plexmedia/e621/explicit";
+const saveToAnimation = "/media/plex/plexmedia/e621/explicitanimation";
+const saveToSafe = "/media/plex/plexmedia/e621/safe";
 
 [saveTo, saveToAnimation, saveToSafe].forEach(element => {
     if (!fs.existsSync(element)) {
@@ -14,55 +12,48 @@ const saveToSafe = "/media/plex/plexmedia/Pictures/e621safe";
     }
 });
 
-
-const baseURLFav = "https://e621.net/favorite/create.json?login=earlopain&password_hash=" + secrets.e621passwordhash + "&id=";
-const baseURLUpvote = "https://e621.net/post/vote.json?login=earlopain&password_hash=" + secrets.e621passwordhash + "&score=1&id=";
-
 const alreadyDownloaded = fs.readdirSync(saveTo).concat(fs.readdirSync(saveToAnimation), fs.readdirSync(saveToSafe)).map(element => {
     return element.split(".")[0];
 });
 
 async function main() {
     for (const id of getUserInput(process.argv[2])) {
-        const json = id.length === 32 ? await getJSON(jsonURL + "md5=" + id) : await getJSON(jsonURL + "id=" + id);
-
-        if (json.status === "deleted") {
-            console.log("Post " + json.md5 + " (" + id + ") is deleted");
+        const json = await getPost(id);
+        if (json.flags.deleted) {
+            console.log("Post " + json.file.md5 + " (" + id + ") is deleted");
             continue;
         }
-        if (alreadyDownloaded.includes(json.md5)) {
-            console.log(json.md5 + " already downloaded");
+        if (alreadyDownloaded.includes(json.file.md5)) {
+            console.log(json.filemd5 + " already downloaded");
             continue;
         }
-
-        await postJSON(baseURLFav + json.id);
-        const result = await postJSON(baseURLUpvote + json.id);
-        if (result.change === -1)
-            await postJSON(baseURLUpvote + id);
+        if (!json.is_favorited) {
+            await favoritePost(json.id);
+        }
+        await upvotePost(json.id);
         await writeFile(json);
-        console.log(json.md5 + " finished");
+        console.log(json.file.md5 + " finished");
     }
-    console.log("Done");
 }
 
 main();
 
 function getUserInput(input) {
-    const regex = /post\/show\/([0-9]*)|md5=([0-9a-z]*)/g;
+    const regex = /posts\/([0-9]*)/g;
     let results = [];
     let m;
     do {
         m = regex.exec(input);
         if (m) {
-            results.push(m[1] || m[2]);
+            results.push(m[1]);
         }
     } while (m);
     return results;
 }
 
 async function writeFile(json) {
-    const url = json.file_url;
-    const filename = url.split("/")[url.split("/").length - 1];
+    const url = "https://static1.e621.net/data/" + json.file.md5.substring(0, 2) + "/" + json.file.md5.substring(2, 4) + "/" + json.file.md5 + "." + json.file.ext;
+    const filename = json.file.md5 + "." + json.file.ext;
     const bin = await getBinary(url);
 
     let folder;
@@ -70,7 +61,7 @@ async function writeFile(json) {
     if (json.rating === "s" || json.rating === "q") {
         folder = saveToSafe;
     }
-    else if (json.file_ext === "gif" || json.file_ext === "swf" || json.file_ext === "webm") {
+    else if (json.file.ext === "gif" || json.file.ext === "swf" || json.file.ext === "webm") {
         folder = saveToAnimation;
     }
     else {
@@ -82,22 +73,38 @@ async function writeFile(json) {
 
 
 async function getBinary(url) {
-    return await getURL(url, "binary");
+    return await makeRequest(url, "binary");
 }
 
-async function getJSON(url) {
-    const json = await getURL(url, "utf8");
-    return JSON.parse(json);
+async function getPost(id) {
+    const url = "https://e621.net/posts/" + id + ".json";
+    const json = await makeRequest(url, "utf8");
+    return json.post;
 }
 
-async function postJSON(url) {
-    const json = await getURL(url, "utf8", "post");
-    return JSON.parse(json);
+async function favoritePost(id) {
+    const baseURLFav = "https://e621.net/favorites.json";
+    return await makeRequest(baseURLFav, "utf8", "POST", { post_id: id });
 }
 
-async function getURL(url, formating, method = "get") {
+async function upvotePost(id) {
+    const url = "https://e621.net/posts/" + id + "/votes.json";
+    const json = await makeRequest(url, "utf8", "POST", { score: 1 });
+    if (json.our_score === 0) {
+        await makeRequest(url, "utf8", "POST", { score: 1 });
+    }
+}
+
+async function makeRequest(url, formating, method = "GET", json = {}) {
+    const username = secrets.e621username;
+    const apiKey = secrets.e621apikey;
     return new Promise(function (resolve, reject) {
-        request({ method: method, url: url, headers: { "User-Agent": 'e621downloader/earlopain' }, encoding: formating }, async (error, response, body) => {
+        request({
+            method: method, url: url, headers: { "User-Agent": 'e621downloader/earlopain' }, encoding: formating, json: json, auth: {
+                user: username,
+                pass: apiKey
+            }
+        }, async (error, response, body) => {
             resolve(body);
         });
     });
