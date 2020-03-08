@@ -5,8 +5,7 @@ const server = "http://192.168.178.97:32400";
 const plexToken = "fpJx4zeYwyou3KWv4BNX";
 const sectionName = "e621explicit";
 
-const localTagCutoff = 5;       //How often does it have to appear locally
-const tagWhitelist = [];        //Those will not be filtered regardless of the above,
+const localTagCutoff = 10;       //How often does it have to appear locally
 const tagOverwrites = { "cuntboy": "andromorph", "dickgirl": "gynomorph" };
 //works like on e6, probably
 if (!fs.existsSync(__dirname + "/e621posts"))
@@ -37,13 +36,11 @@ async function main() {
             continue;
         }
         let tags = prepareTagArray([].concat.apply([], Object.values(postJson.tags)));
-        tags = prepareTagArray(tags);
-        tags = tags.filter(tag => allowedTags.indexOf(tag) === 1);
+        tags = tags.filter(tag => allowedTags.indexOf(tag) !== -1);
         const originalFileTags = await file.getAllTags();
         if (originalFileTags.length !== 0)
             continue;
         await file.addTags(tags);
-        return;
     }
     fs.writeFileSync(__dirname + "/previousFiles.json", JSON.stringify(previousFileKeys.concat(newFiles.map(e => e.key))), "utf8");
 }
@@ -52,7 +49,6 @@ let tagCounter = {};
 let tagOverwriteKeys = Object.keys(tagOverwrites)
 async function getTagFilter(files) {
     let filter = [];
-    let artistTagArray = [];
     for (let i = 0; i < files.length; i++) {
         const postJson = await getE621Json(files[i].title);
         if (postJson.id === undefined) {
@@ -60,25 +56,7 @@ async function getTagFilter(files) {
         }
         const tags = prepareTagArray([].concat.apply([], Object.values(postJson.tags)));
         for (let tagName of tags) {
-            if (artistTagArray.includes(tagName)) {
-                continue;
-            }
-            for (const key of tagOverwriteKeys) {
-                tagName = tagName.replace(new RegExp(tagOverwrites[key], "g"), key);
-            }
-            let isWhitelisted = false;
-            for (const whitelisted of tagWhitelist) {
-                if (new RegExp("^" + whitelisted.split("*").join(".*") + "$").test(tagName)) {
-                    isWhitelisted = true;
-                    break;
-                }
-            }
-            if (isWhitelisted) {
-                continue;
-            }
-            if (!postJson.tags.artist.includes(tagName)) {
-                tagCounter[tagName] = tagCounter[tagName] === undefined ? 1 : tagCounter[tagName] + 1;
-            }
+            tagCounter[tagName] = tagCounter[tagName] === undefined ? 1 : tagCounter[tagName] + 1;
         }
     }
     for (const key of Object.keys(tagCounter)) {
@@ -106,7 +84,7 @@ function prepareTagArray(array) {
             tag = tag.replace(new RegExp(tagOverwrites[key], "g"), key);
         }
         return tag;
-    });//allow only ascii minus & ; => no problems with wierd url chars, also overwrite tag if spefified
+    });
     return array;
 }
 
@@ -202,57 +180,6 @@ class PlexGenericFile {
     }
 }
 
-class PlexAlbum extends PlexGenericFile {
-    constructor(data, sectionID, server) {
-        super(data, sectionID, server);
-        this.songs = [];
-        return new Promise(async resolve => {
-            this.artist = data.parentTitle;
-            const json = await server.request("/library/metadata/" + this.key + "/children");
-            for (const song of json.MediaContainer.Metadata) {
-                this.songs.push(new PlexSong(song, this.sectionID, this.server));
-            }
-
-
-            valueCheck(this);
-
-            resolve(this);
-        })
-    }
-
-    static async getAlbumsFromArtistData(data, sectionID, server) {
-        let result = [];
-        const allAlbums = await server.request("/library/metadata/" + data.key + "/children");
-        for (const album of allAlbums.MediaContainer.Metadata) {
-            result.push(await new PlexAlbum(album, sectionID, server))
-        }
-        return result;
-
-    }
-}
-
-class PlexArtist extends PlexGenericFile {
-    constructor(data, sectionID, server) {
-        super(data, sectionID, server);
-        this.genres = [];
-        if (!data.Genre)
-            this.genres = [];
-        else {
-            for (const genre of data.Genre) {
-                this.genres.push(genre.tag);
-            }
-        }
-
-        return new Promise(async resolve => {
-            const data = await this.server.request("/library/metadata/" + this.key + "/children");
-            this.albums = await PlexAlbum.getAlbumsFromArtistData(data.MediaContainer, this.sectionID, this.server);
-            valueCheck(this);
-
-            resolve(this);
-        })
-    }
-}
-
 class PlexFileContent extends PlexGenericFile {
     constructor(data, sectionID, server) {
         super(data, sectionID, server);
@@ -267,17 +194,6 @@ class PlexPicture extends PlexFileContent {
         this.height = data.Media[0].height;
         this.width = data.Media[0].width;
         valueCheck(this);
-    }
-
-    async getImage(x, y) {
-        let undefCount = 0;
-        undefCount += x === undefined;
-        undefCount += y === undefined;
-        if (undefCount === 1)
-            throw new Error("Either specify none or both values");
-        if (undefCount === 2)
-            return await this.server.request(this.filepath, "GET");
-        return await this.server.request("/photo/: /transcode?width=" + x + "&height=" + y + "&minSize=1&url=" + this.filepath, "GET");
     }
 }
 
@@ -296,11 +212,6 @@ class PlexSection {
                 case "photo":
                     for (const file of json.MediaContainer.Metadata) {
                         this.files.push(new PlexPicture(file, this.id, server));
-                    }
-                    break;
-                case "artist":
-                    for (const file of json.MediaContainer.Metadata) {
-                        this.files.push(await new PlexArtist(file, this.id, server));
                     }
                     break;
                 default:
@@ -363,23 +274,11 @@ class PlexServer {
     }
 }
 
-class PlexSong extends PlexFileContent {
-    constructor(data, sectionID, server) {
-        super(data, sectionID, server);
-        this.duration = data.duration;
-        this.filepath = data.Media[0].Part[0].key;
-        this.filesize = data.Media[0].Part[0].size;
-
-        valueCheck(this);
-    }
-}
-
 function valueCheck(that) {
     for (const key of Object.keys(that)) {
-        if (key === "thumbpath" && that[key] === undefined)
+        if (key === "thumbpath" && that[key] === undefined) {
             that[key] = "/";        //TODO find blank image
-        if (that[key] === undefined)
-            debugger;
+        }
     }
 }
 
