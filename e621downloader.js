@@ -39,7 +39,7 @@ async function main() {
 main();
 
 function getUserInput(input) {
-    const regex = /posts\/([0-9]*)/g;
+    const regex = /posts\/([0-9]+)/g;
     let results = [];
     let m;
     do {
