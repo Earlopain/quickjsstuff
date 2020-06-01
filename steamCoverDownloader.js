@@ -48,7 +48,6 @@ if (steamFolder === undefined) {
             steamFolder = os.homedir() + "/Library/Application Support/Steam";
             break;
     }
-
 }
 if (steamFolder === undefined || !fs.existsSync(steamFolder))
     throw new Error("Please manually specify your steam folder at the beginning of the file");
@@ -118,9 +117,9 @@ async function main() {
             continue;
         }
 
-        const gameName = game.name.replace(/\\/g, "\\\\");      //needed for the api request data
+        const gameName = game.name.replace(/'/g, "").replace(/[\\"']/g, "\\$&").replace(/\u0000/g, "\\0");      //https://stackoverflow.com/a/770533/7873303
         const igdbGameArray = await doApiRequest("games", 'fields name,cover; search "' + gameName + '";');
-        const igdbGame = igdbGameArray.filter(value => { return value.name.replace(/\\/g, "\\\\") === gameName })[0];
+        const igdbGame = igdbGameArray.filter(value => { return value.name.replace(/'/g, "").replace(/[\\"']/g, "\\$&").replace(/\u0000/g, "\\0") === gameName })[0];
 
         if (igdbGame === undefined || igdbGame.cover === undefined) {   //game could not exist or it does but has no cover
             console.log("%s has no cover", game.name)
