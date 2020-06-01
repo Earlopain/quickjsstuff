@@ -48,24 +48,27 @@ async function main() {
 let tagCounter = {};
 let tagOverwriteKeys = Object.keys(tagOverwrites)
 async function getTagFilter(files) {
-    let filter = [];
+    let filter = new Set();
     for (let i = 0; i < files.length; i++) {
         const postJson = await getE621Json(files[i].title);
         if (postJson.id === undefined) {
             continue;
         }
         const tags = prepareTagArray([].concat.apply([], Object.values(postJson.tags)));
+        for (let artistName of postJson.tags.artist) {
+            filter.add(artistName);
+        }
         for (let tagName of tags) {
             tagCounter[tagName] = tagCounter[tagName] === undefined ? 1 : tagCounter[tagName] + 1;
         }
     }
     for (const key of Object.keys(tagCounter)) {
         if (tagCounter[key] >= localTagCutoff) {
-            filter.push(key);
+            filter.add(key);
         }
     }
-    console.log("Total tags: " + Object.keys(tagCounter).length + " Left: " + filter.length);
-    return filter;
+    console.log("Total tags: " + Object.keys(tagCounter).length + " Left: " + filter.size);
+    return Array.from(filter);
 }
 
 async function getE621Json(md5) {
