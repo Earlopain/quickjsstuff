@@ -126,6 +126,9 @@ function pngTo2DArray(path) {
     return new Promise(resolve => {
         let d1array = [];
         fs.createReadStream(path)
+            .on("error", () => {
+                resolve([]);
+            })
             .pipe(new PNG())
             .on('parsed', function () {
                 for (let y = 0; y < this.height; y++) {
